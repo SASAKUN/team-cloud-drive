@@ -93,18 +93,32 @@ router.get('/keys', requireAdmin, (req, res) => {
   res.render('admin-keys', { title: '密钥管理', currentPage: 'keys', keys, files });
 });
 
-// POST /admin/upload - Multi-file upload
+// POST /admin/upload - Multi-file upload (supports AJAX and form POST)
 router.post('/upload', requireAdmin, (req, res, next) => {
   upload.array('files', 20)(req, res, (err) => {
-    if (err) return upload.handleUploadError(err, req, res, next);
+    if (err) {
+      if (req.xhr || req.get('X-Requested-With') === 'XMLHttpRequest') {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(413).json({ error: `文件大小超过限制（最大 ${config.maxFileSizeMB}MB）` });
+        }
+        if (err.message && err.message.startsWith('Unsupported file type')) {
+          return res.status(400).json({ error: err.message });
+        }
+        return res.status(500).json({ error: '上传失败: ' + err.message });
+      }
+      return upload.handleUploadError(err, req, res, next);
+    }
 
     if (!req.files || req.files.length === 0) {
+      if (req.xhr || req.get('X-Requested-With') === 'XMLHttpRequest') {
+        return res.json({ success: false, error: '请选择文件' });
+      }
       const files = File.findAll().map(f => ({ ...f, icon: getFileIcon(f.category, f.original_name), sizeFormatted: formatFileSize(f.size_bytes) }));
-      return res.render('admin-files', { title: '文件管理', files, error: '请选择文件', success: null });
+      return res.render('admin-files', { title: '文件管理', currentPage: 'files', files, error: '请选择文件', success: null });
     }
 
     const visibility = req.body.visibility || 'public';
-    let uploadedCount = 0;
+    let uploaded = [];
 
     req.files.forEach((file, idx) => {
       const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
@@ -122,10 +136,16 @@ router.post('/upload', requireAdmin, (req, res, next) => {
         description: req.body.description || '',
         visibility
       });
-      uploadedCount++;
+      uploaded.push({ uuid: fileUuid, name: originalName, size: file.size });
     });
 
-    res.redirect('/admin/files?success=' + encodeURIComponent(`${uploadedCount} 个文件上传成功`));
+    // AJAX: return JSON
+    if (req.xhr || req.get('X-Requested-With') === 'XMLHttpRequest') {
+      return res.json({ success: true, count: uploaded.length, files: uploaded });
+    }
+
+    // Form POST: redirect
+    res.redirect('/admin/files?success=' + encodeURIComponent(`${uploaded.length} 个文件上传成功`));
   });
 });
 

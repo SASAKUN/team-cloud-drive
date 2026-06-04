@@ -27,15 +27,17 @@
       <form method="POST" action="/admin/upload" enctype="multipart/form-data" class="admin-form" id="uploadForm">
         <div class="form-row">
           <div class="file-input-wrapper admin-file-input">
-            <input type="file" id="files" name="files" multiple required
+            <input type="file" id="files" name="files" multiple
                    accept=".doc,.docx,.pages,.xls,.xlsx,.numbers,.ppt,.pptx,.key,.pdf,.txt,.csv,.md,.png,.jpg,.jpeg,.gif,.bmp,.svg,.zip,.mp4,.mov">
             <label for="files" class="file-label" id="fileLabel">
               <span class="upload-icon">＋</span>
-              <span>点击选择文件（可多选）</span>
+              <span>点击选择文件或拖拽文件到此处</span>
             </label>
           </div>
         </div>
         <div id="selectedFiles" class="selected-files"></div>
+        <!-- Upload progress area (hidden until upload starts) -->
+        <div id="uploadProgress" class="upload-progress-area" style="display:none;"></div>
         <div class="form-row">
           <input type="text" name="description" placeholder="文件描述（可选）" style="flex:1">
           <select name="visibility">
@@ -45,7 +47,7 @@
           </select>
           <button type="submit" class="btn btn-primary" id="uploadBtn">上传</button>
         </div>
-        <p class="form-hint">支持 Word、Pages、Excel、Numbers、PPT、Keynote、PDF、文本、图片、视频 · 单文件最大 500MB · 一次最多 20 个</p>
+        <p class="form-hint">支持 Word、Pages、Excel、Numbers、PPT、Keynote、PDF、文本、图片、视频 · 单文件最大 500MB · 最多 3 个文件同时上传 · 一次最多 20 个</p>
       </form>
     </div>
 
@@ -114,29 +116,8 @@
     </div>
   </main>
 
+  <script src="/js/upload.js"></script>
   <script>
-  // ============ File upload ============
-  const fileInput = document.getElementById('files');
-  const fileLabel = document.getElementById('fileLabel');
-  const selectedDiv = document.getElementById('selectedFiles');
-
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files.length > 0) {
-      fileLabel.innerHTML = `<span class="upload-icon">✓</span><span>已选择 ${fileInput.files.length} 个文件</span>`;
-      let html = '<ul class="selected-list">';
-      for (let i = 0; i < fileInput.files.length; i++) {
-        const f = fileInput.files[i];
-        const sizeMB = (f.size / 1048576).toFixed(1);
-        html += `<li>${f.name} <span class="text-muted">(${sizeMB} MB)</span></li>`;
-      }
-      html += '</ul>';
-      selectedDiv.innerHTML = html;
-    } else {
-      fileLabel.innerHTML = '<span class="upload-icon">＋</span><span>点击选择文件（可多选）</span>';
-      selectedDiv.innerHTML = '';
-    }
-  });
-
   function handleAdminCheckAll(el) {
     document.querySelectorAll('.admin-checkbox').forEach(cb => { cb.checked = el.checked; });
   }
