@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title + ' — ' : '' %>Team Cloud Drive</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* File Picker Modal */
+    .file-picker-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .file-picker-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .file-picker-modal {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      width: 90%;
+      max-width: 560px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(12px) scale(0.98);
+      transition: transform 0.25s var(--ease-apple);
+    }
+    .file-picker-overlay.active .file-picker-modal {
+      transform: translateY(0) scale(1);
+    }
+    .file-picker-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--apple-border);
+    }
+    .file-picker-header h3 {
+      font-size: 17px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .file-picker-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: var(--apple-text-secondary);
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: background 0.15s;
+    }
+    .file-picker-close:hover {
+      background: var(--apple-grey);
+    }
+    .file-picker-search {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--apple-border);
+    }
+    .file-picker-search input {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-family: inherit;
+      border: 1px solid var(--apple-border-strong);
+      border-radius: var(--radius-full);
+      background: var(--apple-grey);
+      outline: none;
+    }
+    .file-picker-search input:focus {
+      border-color: var(--apple-blue);
+      background: #ffffff;
+      box-shadow: 0 0 0 4px rgba(0,113,227,0.08);
+    }
+    .file-picker-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+      min-height: 200px;
+      max-height: 50vh;
+    }
+    .file-picker-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .file-picker-item:hover {
+      background: var(--apple-grey);
+    }
+    .file-picker-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--apple-blue);
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .file-picker-item .file-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+      width: 24px;
+      text-align: center;
+    }
+    .file-picker-item .file-name {
+      flex: 1;
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .file-picker-item .file-size {
+      font-size: 12px;
+      color: var(--apple-text-tertiary);
+      flex-shrink: 0;
+    }
+    .file-picker-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--apple-text-tertiary);
+      font-size: 14px;
+    }
+    .file-picker-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-top: 1px solid var(--apple-border);
+      gap: 12px;
+    }
+    .file-picker-count {
+      font-size: 13px;
+      color: var(--apple-text-secondary);
+    }
+    .file-picker-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .file-picker-actions button {
+      padding: 8px 18px;
+      font-size: 14px;
+      border-radius: var(--radius-full);
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .file-picker-actions .btn-cancel {
+      background: var(--apple-grey);
+      color: var(--apple-text);
+    }
+    .file-picker-actions .btn-cancel:hover {
+      background: #e5e5e7;
+    }
+    .file-picker-actions .btn-confirm {
+      background: var(--apple-blue);
+      color: #ffffff;
+    }
+    .file-picker-actions .btn-confirm:hover {
+      background: #0066cc;
+    }
+    .file-picker-actions .btn-confirm:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <%- include('admin-nav', { currentPage: 'bundles' }) %>
+
+  <main class="container">
+    <div class="dash-header">
+      <h1>文件包管理</h1>
+    </div>
+
+    <!-- Bundle Create Form -->
+    <div class="admin-section" id="bundles-section">
+      <p style="font-size: 13px; color: var(--apple-text-secondary); margin-bottom: 16px;">
+        创建文件包将多个文件归类组合，便于分享和浏览。可将文件包作为另一个文件包的子包。
+      </p>
+
+      <div class="form-row" style="margin-bottom: 12px;">
+        <input type="text" id="bundleName" placeholder="文件包名称（如：2024年报资料）" style="flex:1">
+        <input type="text" id="bundleDesc" placeholder="描述（可选）" style="flex:1">
+        <select id="bundleVisibility">
+          <option value="public">公开 · 可查看+下载</option>
+          <option value="download_only">仅查看 · 不可下载</option>
+          <option value="hidden">隐藏 · 暂不公开</option>
+        </select>
+        <button class="btn btn-primary" onclick="createBundle()">新建文件包</button>
+      </div>
+      <div class="form-row" style="margin-bottom: 20px;">
+        <label style="font-size:13px;color:var(--apple-text-secondary);white-space:nowrap;">父文件包：</label>
+        <select id="bundleParent" style="flex:1">
+          <option value="">无（顶级文件包）</option>
+        </select>
+        <span style="font-size:12px;color:var(--apple-text-tertiary);">选择父包即创建子文件包</span>
+      </div>
+
+      <div id="bundleList">
+        <p class="empty-hint" id="bundleEmpty">暂无文件包，创建一个吧</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- File Picker Modal -->
+  <div class="file-picker-overlay" id="filePickerOverlay" onclick="closeFilePicker(event)">
+    <div class="file-picker-modal" onclick="event.stopPropagation()">
+      <div class="file-picker-header">
+        <h3 id="filePickerTitle">选择文件</h3>
+        <button class="file-picker-close" onclick="closeFilePicker()">&times;</button>
+      </div>
+      <div class="file-picker-search">
+        <input type="text" id="filePickerSearch" placeholder="搜索文件…" oninput="filterPickerFiles(this.value)">
+      </div>
+      <div class="file-picker-body" id="filePickerBody">
+        <div class="file-picker-empty">暂无文件</div>
+      </div>
+      <div class="file-picker-footer">
+        <span class="file-picker-count" id="filePickerCount">已选择 0 个</span>
+        <div class="file-picker-actions">
+          <button class="btn-cancel" onclick="closeFilePicker()">取消</button>
+          <button class="btn-confirm" id="filePickerConfirm" onclick="submitPickerFiles()" disabled>添加选中</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  const BUNDLE_FILE_PAGE_SIZE = 10;
+  let bundleData = <%- JSON.stringify(typeof bundles !== 'undefined' ? bundles : []) %>;
+  let allFilesData = <%- JSON.stringify(typeof files !== 'undefined' ? files : []) %>;
+  let currentPickerBundleId = null;
+  let pickerSelectedUuids = new Set();
+
+  // ============ Helpers ============
+
+  function populateParentSelect(bundles) {
+    const sel = document.getElementById('bundleParent');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">无（顶级文件包）</option>';
+    bundles.forEach(b => {
+      sel.innerHTML += `<option value="${b.id}">${b.name}</option>`;
+    });
+  }
+
+  // ============ Render ============
+
+  function renderBundleList(bundles) {
+    const container = document.getElementById('bundleList');
+    const empty = document.getElementById('bundleEmpty');
+
+    if (bundles.length === 0) {
+      empty.style.display = 'block';
+      container.innerHTML = '';
+      container.appendChild(empty);
+      return;
+    }
+
+    empty.style.display = 'none';
+
+    const bundleMap = {};
+    bundles.forEach(b => { bundleMap[b.id] = b; });
+
+    let html = '';
+    bundles.forEach(b => {
+      const visLabel = b.visibility === 'public' ? '公开' : b.visibility === 'download_only' ? '仅查看' : '隐藏';
+      const visClass = b.visibility === 'public' ? 'vis-public' : b.visibility === 'download_only' ? 'vis-download_only' : 'vis-hidden';
+      const fileCount = b.files ? b.files.length : 0;
+      const childCount = b.children ? b.children.length : 0;
+      const isChild = !!b.parent_id;
+      const parentName = isChild && bundleMap[b.parent_id] ? bundleMap[b.parent_id].name : '';
+
+      html += `<div class="bundle-card collapsed" id="bundle-card-${b.id}">`;
+
+      // --- Card header (always visible, clickable to toggle) ---
+      html += `<div class="bundle-card-header" onclick="toggleBundleCard(${b.id})">`;
+      html += `<div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">`;
+      html += `<span class="bundle-chevron">▶</span>`;
+      if (isChild) {
+        html += `<span style="font-size:11px;color:var(--apple-blue);background:rgba(0,113,227,0.08);padding:1px 6px;border-radius:4px;">子包 · 属于「${parentName}」</span>`;
+      }
+      html += `<strong style="font-size:15px;">${b.name}</strong>`;
+      html += `<span class="vis-select ${visClass}" style="margin-left:8px;cursor:default;font-size:11px;">${visLabel}</span>`;
+      html += `<span style="font-size:12px;color:var(--apple-text-secondary);margin-left:8px;">${fileCount} 个文件${childCount > 0 ? ' · ' + childCount + ' 个子包' : ''}</span>`;
+      html += `</div>`;
+
+      // Action buttons (outside the toggle area)
+      html += `<div style="display:flex;gap:6px;" onclick="event.stopPropagation()">`;
+      html += `<button class="btn btn-sm btn-secondary" onclick="addFileToBundle(${b.id})">添加文件</button>`;
+      html += `<button class="btn btn-sm btn-secondary" onclick="editBundle(${b.id}, '${b.name.replace(/'/g, "\\'")}', '${(b.description||'').replace(/'/g, "\\'")}', '${b.visibility}', ${b.parent_id || 'null'})">编辑</button>`;
+      html += `<button class="btn btn-sm btn-danger" onclick="deleteBundle(${b.id})">删除</button>`;
+      html += `</div>`;
+
+      html += `</div>`; // end bundle-card-header
+
+      // --- Collapsible body ---
+      html += `<div class="bundle-body" id="bundle-body-${b.id}">`;
+
+      if (b.description) {
+        html += `<p style="font-size:13px;color:var(--apple-text-secondary);padding:0 16px 8px;">${b.description}</p>`;
+      }
+
+      // File search bar
+      if (fileCount > 0) {
+        html += `<div class="bundle-file-search">`;
+        html += `<input type="text" class="bundle-search-input" placeholder="搜索文件…" oninput="searchBundleFiles(${b.id}, this.value)" onclick="event.stopPropagation()">`;
+        html += `</div>`;
+      }
+
+      // Files container (paginated)
+      html += `<div class="bundle-files-wrapper" id="bundle-files-${b.id}" data-bundle-id="${b.id}" data-files='${JSON.stringify(b.files || []).replace(/'/g, "&#39;")}'>`;
+      html += `</div>`;
+
+      // Pagination for files
+      if (fileCount > BUNDLE_FILE_PAGE_SIZE) {
+        html += `<div class="bundle-file-pagination" id="bundle-pagination-${b.id}" style="display:none;">`;
+        html += `<button class="page-btn prev" onclick="event.stopPropagation();changeBundleFilePage(${b.id}, -1)">‹ 上一页</button>`;
+        html += `<span class="page-info" id="bundle-page-info-${b.id}">1 / ${Math.ceil(fileCount / BUNDLE_FILE_PAGE_SIZE)}</span>`;
+        html += `<button class="page-btn next" onclick="event.stopPropagation();changeBundleFilePage(${b.id}, 1)">下一页 ›</button>`;
+        html += `</div>`;
+      }
+
+      // Children (sub-bundles) — always shown if present
+      if (b.children && b.children.length > 0) {
+        html += `<div style="padding:0 16px 12px;">`;
+        b.children.forEach(child => {
+          const childVis = child.visibility === 'public' ? '公开' : child.visibility === 'download_only' ? '仅查看' : '隐藏';
+          html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;margin:4px 0;background:var(--apple-grey);border-radius:8px;font-size:12px;">`;
+          html += `<span style="color:var(--apple-blue);">↳</span>`;
+          html += `<strong>${child.name}</strong>`;
+          html += `<span style="color:var(--apple-text-secondary);font-size:11px;">${childVis} · ${child.files ? child.files.length : 0} 个文件</span>`;
+          html += `</div>`;
+        });
+        html += `</div>`;
+      }
+
+      if (fileCount === 0 && childCount === 0) {
+        html += `<p style="font-size:13px;color:var(--apple-text-tertiary);padding:0 16px 12px;">文件包为空，点击上方「添加文件」加入文件</p>`;
+      }
+
+      html += `</div>`; // end bundle-body
+
+      html += `</div>`; // end bundle-card
+    });
+
+    container.innerHTML = html;
+  }
+
+  // ============ Collapse / Expand ============
+
+  function toggleBundleCard(bundleId) {
+    const card = document.getElementById('bundle-card-' + bundleId);
+    const body = document.getElementById('bundle-body-' + bundleId);
+    if (!card || !body) return;
+
+    const isCollapsed = card.classList.toggle('collapsed');
+
+    if (!isCollapsed) {
+      // Expanded: render files for page 1 if not yet rendered
+      renderBundleFiles(bundleId, 1);
+    }
+  }
+
+  // ============ File Rendering (paginated) ============
+
+  function renderBundleFiles(bundleId, page) {
+    const wrapper = document.getElementById('bundle-files-' + bundleId);
+    if (!wrapper) return;
+
+    const allFiles = JSON.parse(wrapper.dataset.files || '[]');
+    const q = (wrapper.dataset.searchQuery || '').toLowerCase();
+
+    // Filter by search query
+    const files = q
+      ? allFiles.filter(f => (f.original_name || '').toLowerCase().includes(q))
+      : allFiles;
+
+    const totalPages = Math.max(1, Math.ceil(files.length / BUNDLE_FILE_PAGE_SIZE));
+    const clampedPage = Math.max(1, Math.min(page, totalPages));
+    const start = (clampedPage - 1) * BUNDLE_FILE_PAGE_SIZE;
+    const pageFiles = files.slice(start, start + BUNDLE_FILE_PAGE_SIZE);
+
+    let html = '';
+    if (files.length === 0 && q) {
+      html = '<div class="bundle-search-empty">未找到匹配的文件</div>';
+    } else {
+      pageFiles.forEach(f => {
+        html += `<div class="bundle-file-item" id="bf-${bundleId}-${f.uuid}">`;
+        html += `<span class="file-icon-small">${f.icon || ''}</span>`;
+        html += `<span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.original_name}</span>`;
+        html += `<span style="font-size:12px;color:var(--apple-text-tertiary);margin-right:8px;">${f.sizeFormatted || ''}</span>`;
+        html += `<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();removeFileFromBundle(${bundleId}, '${f.uuid}')" style="font-size:11px;padding:2px 10px;">移除</button>`;
+        html += `</div>`;
+      });
+    }
+
+    wrapper.innerHTML = html;
+
+    // Update pagination
+    const pag = document.getElementById('bundle-pagination-' + bundleId);
+    if (pag) {
+      pag.style.display = files.length > BUNDLE_FILE_PAGE_SIZE && !q ? '' : 'none';
+      const info = document.getElementById('bundle-page-info-' + bundleId);
+      if (info) info.textContent = clampedPage + ' / ' + totalPages;
+      const prevBtn = pag.querySelector('.prev');
+      const nextBtn = pag.querySelector('.next');
+      if (prevBtn) prevBtn.disabled = clampedPage <= 1;
+      if (nextBtn) nextBtn.disabled = clampedPage >= totalPages;
+    }
+
+    // Store current page
+    wrapper.dataset.currentPage = clampedPage;
+  }
+
+  function changeBundleFilePage(bundleId, delta) {
+    const wrapper = document.getElementById('bundle-files-' + bundleId);
+    if (!wrapper) return;
+    const current = parseInt(wrapper.dataset.currentPage || '1', 10);
+    renderBundleFiles(bundleId, current + delta);
+  }
+
+  // ============ File Search ============
+
+  function searchBundleFiles(bundleId, query) {
+    const wrapper = document.getElementById('bundle-files-' + bundleId);
+    if (!wrapper) return;
+    wrapper.dataset.searchQuery = query.trim();
+    renderBundleFiles(bundleId, 1);
+  }
+
+  // ============ Bundle CRUD ============
+
+  async function createBundle() {
+    const name = document.getElementById('bundleName').value.trim();
+    const description = document.getElementById('bundleDesc').value.trim();
+    const visibility = document.getElementById('bundleVisibility').value;
+    const parentId = document.getElementById('bundleParent').value || null;
+
+    if (!name) { alert('请输入文件包名称'); return; }
+
+    try {
+      const resp = await fetch('/admin/bundles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description: description || null, visibility, parentId })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        document.getElementById('bundleName').value = '';
+        document.getElementById('bundleDesc').value = '';
+        location.reload();
+      } else {
+        alert('创建失败: ' + data.error);
+      }
+    } catch (err) {
+      alert('创建失败: ' + err.message);
+    }
+  }
+
+  async function editBundle(id, currentName, currentDesc, currentVis, currentParentId) {
+    const name = prompt('文件包名称：', currentName);
+    if (name === null) return;
+    const desc = prompt('描述（可选）：', currentDesc);
+    if (desc === null) return;
+    const vis = confirm('设为「公开」？（确定=公开，取消=仅查看）') ? 'public' : 'download_only';
+
+    try {
+      const resp = await fetch(`/admin/bundles/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), description: desc.trim(), visibility: vis, parentId: currentParentId })
+      });
+      const data = await resp.json();
+      if (data.success) location.reload();
+      else alert('更新失败: ' + data.error);
+    } catch (err) {
+      alert('更新失败: ' + err.message);
+    }
+  }
+
+  async function deleteBundle(id) {
+    if (!confirm('确定要删除此文件包吗？（文件本身不会被删除）')) return;
+    try {
+      const resp = await fetch(`/admin/bundles/${id}/delete`, { method: 'POST' });
+      const data = await resp.json();
+      if (data.success) location.reload();
+      else alert('删除失败: ' + data.error);
+    } catch (err) {
+      alert('删除失败: ' + err.message);
+    }
+  }
+
+  // ============ File Picker Modal ============
+
+  function addFileToBundle(bundleId) {
+    currentPickerBundleId = bundleId;
+    pickerSelectedUuids.clear();
+    document.getElementById('filePickerSearch').value = '';
+    document.getElementById('filePickerTitle').textContent = '添加文件到文件包';
+
+    // Get already-in-bundle file UUIDs
+    const bundle = bundleData.find(b => b.id === bundleId);
+    const existingUuids = new Set((bundle && bundle.files) ? bundle.files.map(f => f.uuid) : []);
+
+    // Filter out already-added files
+    const availableFiles = allFilesData.filter(f => !existingUuids.has(f.uuid));
+
+    renderPickerList(availableFiles);
+    updatePickerCount();
+
+    const overlay = document.getElementById('filePickerOverlay');
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeFilePicker(event) {
+    if (event && event.target !== event.currentTarget) return;
+    const overlay = document.getElementById('filePickerOverlay');
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+    currentPickerBundleId = null;
+    pickerSelectedUuids.clear();
+  }
+
+  function renderPickerList(files) {
+    const body = document.getElementById('filePickerBody');
+    if (files.length === 0) {
+      body.innerHTML = '<div class="file-picker-empty">暂无可添加的文件（所有文件已在此文件包中）</div>';
+      return;
+    }
+
+    let html = '';
+    files.forEach(f => {
+      const checked = pickerSelectedUuids.has(f.uuid) ? 'checked' : '';
+      html += `<label class="file-picker-item" for="fp-${f.uuid}">`;
+      html += `<input type="checkbox" id="fp-${f.uuid}" value="${f.uuid}" ${checked} onchange="togglePickerFile('${f.uuid}', this.checked)">`;
+      html += `<span class="file-icon">${f.icon || '📄'}</span>`;
+      html += `<span class="file-name" title="${f.original_name}">${f.original_name}</span>`;
+      html += `<span class="file-size">${f.sizeFormatted || ''}</span>`;
+      html += `</label>`;
+    });
+    body.innerHTML = html;
+  }
+
+  function filterPickerFiles(query) {
+    const q = query.trim().toLowerCase();
+    const bundle = bundleData.find(b => b.id === currentPickerBundleId);
+    const existingUuids = new Set((bundle && bundle.files) ? bundle.files.map(f => f.uuid) : []);
+
+    const filtered = allFilesData.filter(f => {
+      if (existingUuids.has(f.uuid)) return false;
+      if (!q) return true;
+      return (f.original_name || '').toLowerCase().includes(q);
+    });
+
+    renderPickerList(filtered);
+  }
+
+  function togglePickerFile(uuid, checked) {
+    if (checked) pickerSelectedUuids.add(uuid);
+    else pickerSelectedUuids.delete(uuid);
+    updatePickerCount();
+  }
+
+  function updatePickerCount() {
+    const count = pickerSelectedUuids.size;
+    document.getElementById('filePickerCount').textContent = `已选择 ${count} 个`;
+    document.getElementById('filePickerConfirm').disabled = count === 0;
+  }
+
+  async function submitPickerFiles() {
+    if (!currentPickerBundleId || pickerSelectedUuids.size === 0) return;
+
+    const uuids = Array.from(pickerSelectedUuids);
+    let added = 0;
+    let failed = 0;
+
+    for (const fileUuid of uuids) {
+      try {
+        const resp = await fetch(`/admin/bundles/${currentPickerBundleId}/files`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileUuid })
+        });
+        const data = await resp.json();
+        if (data.success) added++;
+        else failed++;
+      } catch (err) {
+        failed++;
+      }
+    }
+
+    closeFilePicker();
+    if (failed > 0) {
+      alert(`添加完成：${added} 个成功，${failed} 个失败`);
+    }
+    location.reload();
+  }
+
+  async function removeFileFromBundle(bundleId, fileUuid) {
+    try {
+      const resp = await fetch(`/admin/bundles/${bundleId}/files/remove`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileUuid })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        // Update local data
+        const wrapper = document.getElementById('bundle-files-' + bundleId);
+        if (wrapper) {
+          const files = JSON.parse(wrapper.dataset.files || '[]');
+          wrapper.dataset.files = JSON.stringify(files.filter(f => f.uuid !== fileUuid));
+        }
+        const el = document.getElementById(`bf-${bundleId}-${fileUuid}`);
+        if (el) el.remove();
+      } else {
+        alert('移除失败: ' + data.error);
+      }
+    } catch (err) {
+      alert('移除失败: ' + err.message);
+    }
+  }
+
+  // ============ Init ============
+  populateParentSelect(bundleData);
+  renderBundleList(bundleData);
+  </script>
+</body>
+</html>

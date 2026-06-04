@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>输入访问密钥 — Team Cloud Drive</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .key-entry-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+      padding: 20px;
+    }
+    .key-entry-card {
+      background: #ffffff;
+      border-radius: 20px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.08);
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+    }
+    .key-entry-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #0071e3, #5ac8fa);
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      font-size: 28px;
+      color: #fff;
+    }
+    .key-entry-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1d1d1f;
+      margin: 0 0 8px;
+    }
+    .key-entry-desc {
+      font-size: 14px;
+      color: #86868b;
+      margin: 0 0 28px;
+      line-height: 1.5;
+    }
+    .key-entry-input-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .key-entry-input {
+      flex: 1;
+      padding: 12px 16px;
+      font-size: 15px;
+      font-family: inherit;
+      border: 2px solid #e5e5e7;
+      border-radius: 12px;
+      background: #f5f5f7;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .key-entry-input:focus {
+      border-color: #0071e3;
+      background: #ffffff;
+      box-shadow: 0 0 0 4px rgba(0,113,227,0.08);
+    }
+    .key-entry-submit {
+      padding: 12px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      background: #0071e3;
+      color: #ffffff;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .key-entry-submit:hover {
+      background: #0066cc;
+      transform: translateY(-1px);
+    }
+    .key-entry-error {
+      background: #fff2f0;
+      border: 1px solid #ffccc7;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #cf1322;
+      margin-bottom: 16px;
+      display: <%= typeof error !== 'undefined' && error ? 'block' : 'none' %>;
+    }
+    .key-entry-footer {
+      margin-top: 24px;
+      font-size: 12px;
+      color: #aeaeb2;
+    }
+    .key-entry-footer a {
+      color: #0071e3;
+      text-decoration: none;
+    }
+    .key-entry-brand {
+      font-size: 14px;
+      font-weight: 500;
+      color: #86868b;
+      margin-bottom: 6px;
+    }
+
+    /* Bounce animation for icon */
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+    .key-entry-icon {
+      animation: float 3s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="key-entry-wrapper">
+    <div class="key-entry-card">
+      <div class="key-entry-icon">🔑</div>
+      <p class="key-entry-brand">Team Cloud Drive</p>
+      <h2 class="key-entry-title">输入访问密钥</h2>
+      <p class="key-entry-desc">
+        此页面内容需要访问密钥才能查看。<br>
+        请输入管理员提供的密钥以继续。
+      </p>
+
+      <div class="key-entry-error"><%= typeof error !== 'undefined' ? error : '' %></div>
+
+      <form method="POST" action="/key-entry">
+        <% if (typeof redirect !== 'undefined' && redirect) { %>
+        <input type="hidden" name="redirect" value="<%= redirect %>">
+        <% } %>
+        <div class="key-entry-input-group">
+          <input
+            type="text"
+            name="key"
+            class="key-entry-input"
+            placeholder="输入您的访问密钥…"
+            value="<%= typeof key !== 'undefined' ? key : '' %>"
+            autofocus
+            autocomplete="off"
+          >
+          <button type="submit" class="key-entry-submit">进入</button>
+        </div>
+      </form>
+
+      <p class="key-entry-footer">
+        没有密钥？请联系文件管理员获取 &nbsp;·&nbsp;
+        <a href="/">返回首页</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>

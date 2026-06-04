@@ -1,0 +1,12 @@
+<nav class="navbar">
+  <div class="container nav-container">
+    <a href="/admin" class="nav-brand">Team Cloud Drive</a>
+    <div class="nav-links">
+      <a href="/admin/files" class="nav-link<%= locals.currentPage === 'files' ? ' nav-link-active' : '' %>">文件管理</a>
+      <a href="/admin/bundles" class="nav-link<%= locals.currentPage === 'bundles' ? ' nav-link-active' : '' %>">文件包</a>
+      <a href="/admin/keys" class="nav-link<%= locals.currentPage === 'keys' ? ' nav-link-active' : '' %>">密钥管理</a>
+      <a href="/" class="nav-link">公开页面</a>
+      <a href="/admin/logout" class="nav-link nav-logout">退出</a>
+    </div>
+  </div>
+</nav>

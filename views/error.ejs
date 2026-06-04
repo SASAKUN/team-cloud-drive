@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title + ' — ' : '' %>Team Cloud Drive</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="/" class="nav-brand">Team Cloud Drive</a>
+      <div class="nav-links">
+        <% if (isAdmin) { %>
+        <a href="/admin" class="nav-link">管理后台</a>
+        <a href="/admin/logout" class="nav-link nav-logout">退出</a>
+        <% } else { %>
+        <a href="/admin/login" class="nav-link">管理登录</a>
+        <% } %>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div class="error-page">
+      <h1><%= title %></h1>
+      <p><%= message %></p>
+      <a href="/" class="btn btn-primary">返回首页</a>
+    </div>
+  </main>
+
+  <script src="/js/main.js"></script>
+  <script src="/js/upload.js"></script>
+</body>
+</html>

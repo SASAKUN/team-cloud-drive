@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title + ' — ' : '' %>Team Cloud Drive</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* ---- Keys page styles ---- */
+    .keys-page {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .perm-file-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .perm-file-table th {
+      text-align: left;
+      font-size: 13px;
+      color: var(--apple-text-secondary);
+      font-weight: 500;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--apple-border);
+    }
+    .perm-file-table td {
+      padding: 8px 12px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--apple-border);
+    }
+    .perm-file-table tr:hover td {
+      background: var(--apple-grey);
+    }
+    .perm-file-table .col-check {
+      width: 36px;
+    }
+    .perm-file-table .col-name {
+      width: auto;
+    }
+    .perm-file-table .col-status {
+      width: 100px;
+      text-align: center;
+    }
+    .perm-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .perm-badge-preview { background: #fff3e0; color: #e65100; }
+    .perm-badge-download { background: #e8f5e9; color: #2e7d32; }
+    .perm-badge-both { background: #e3f2fd; color: var(--apple-blue); }
+    .perm-badge-default { background: var(--apple-grey); color: var(--apple-text-tertiary); }
+    .batch-perm-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      background: var(--apple-grey);
+      border-radius: var(--radius-md);
+      flex-wrap: wrap;
+    }
+    .batch-perm-label {
+      font-size: 13px;
+      color: var(--apple-text-secondary);
+      white-space: nowrap;
+    }
+    .perm-radio-group {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .perm-radio-btn {
+      padding: 5px 14px;
+      font-size: 12px;
+      border: 1px solid var(--apple-border-strong);
+      background: #fff;
+      cursor: pointer;
+      border-radius: var(--radius-full);
+      color: var(--apple-text);
+      transition: all var(--duration-fast) var(--ease-apple);
+      white-space: nowrap;
+    }
+    .perm-radio-btn:hover {
+      border-color: var(--apple-blue);
+    }
+    .perm-radio-btn.selected {
+      background: var(--apple-blue);
+      color: #fff;
+      border-color: var(--apple-blue);
+    }
+    .batch-check-count {
+      font-size: 12px;
+      color: var(--apple-text-tertiary);
+      margin-left: auto;
+    }
+    .key-selector-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding: 16px;
+      background: #fff;
+      border: 1px solid var(--apple-border);
+      border-radius: var(--radius-md);
+    }
+    .key-selector-row label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--apple-text);
+      white-space: nowrap;
+    }
+    .key-selector-row select {
+      flex: 1;
+      max-width: 320px;
+      padding: 6px 12px;
+      font-size: 13px;
+      border: 1px solid var(--apple-border-strong);
+      border-radius: var(--radius-full);
+      background: #fff;
+      outline: none;
+    }
+    .perm-search-bar {
+      margin-bottom: 12px;
+    }
+    .perm-search-input {
+      width: 100%;
+      padding: 8px 14px;
+      font-size: 13px;
+      border: 1px solid var(--apple-border);
+      border-radius: var(--radius-sm);
+      outline: none;
+      background: #fff;
+      transition: border-color var(--duration-fast) var(--ease-apple);
+    }
+    .perm-search-input:focus {
+      border-color: var(--apple-blue);
+    }
+  </style>
+</head>
+<body>
+  <%- include('admin-nav', { currentPage: 'keys' }) %>
+
+  <main class="container">
+    <div class="keys-page">
+      <div class="dash-header">
+        <h1>密钥管理</h1>
+      </div>
+
+      <!-- Key Management Section -->
+      <div class="admin-section" id="keys-section">
+        <h2>访问密钥</h2>
+        <p style="font-size: 13px; color: var(--apple-text-secondary); margin-bottom: 16px;">
+          创建访问密钥并设置权限，将带密钥的链接发送给他人即可授予相应权限。后期可随时修改权限或撤销密钥。
+        </p>
+
+        <div class="form-row" style="margin-bottom: 20px;">
+          <input type="text" id="keyLabel" placeholder="密钥备注（可选，如：张三）" style="flex:1">
+          <select id="keyPermission">
+            <option value="preview">仅预览 · 只能查看文件</option>
+            <option value="download">仅下载 · 只能下载文件</option>
+            <option value="both">预览+下载 · 全部权限</option>
+          </select>
+          <button class="btn btn-primary" onclick="createKey()">生成密钥</button>
+        </div>
+
+        <div id="keyList">
+          <p class="empty-hint" id="keyEmpty">暂无密钥，创建一个吧</p>
+        </div>
+      </div>
+
+      <!-- Key-File Permission Management -->
+      <div class="admin-section" id="key-file-perms-section">
+        <h2>密钥文件权限管理</h2>
+        <p style="font-size:13px;color:var(--apple-text-secondary);margin-bottom:16px;">
+          针对每个密钥，可单独设置其对每个文件的权限。先选中目标文件，再使用批量设置按钮覆盖权限。未设置的文件沿用密钥的全局权限。
+        </p>
+
+        <div class="key-selector-row">
+          <label for="keyFileSelect">选择密钥：</label>
+          <select id="keyFileSelect" onchange="loadKeyFilePermissions()">
+            <option value="">— 请选择 —</option>
+          </select>
+        </div>
+
+        <!-- Batch action bar -->
+        <div class="batch-perm-bar" id="batchPermBar" style="display:none;">
+          <span class="batch-perm-label">选中文件设为：</span>
+          <div class="perm-radio-group" id="permRadioGroup">
+            <button class="perm-radio-btn" data-perm="preview" onclick="selectBatchPerm('preview')">仅预览</button>
+            <button class="perm-radio-btn" data-perm="download" onclick="selectBatchPerm('download')">仅下载</button>
+            <button class="perm-radio-btn" data-perm="both" onclick="selectBatchPerm('both')">预览+下载</button>
+            <button class="perm-radio-btn" data-perm="none" onclick="selectBatchPerm('none')">恢复默认</button>
+          </div>
+          <span class="batch-check-count" id="batchCheckCount">已选 0 个文件</span>
+          <button class="btn btn-sm btn-primary" id="applyBatchBtn" onclick="applyBatchPerm()" disabled>应用</button>
+        </div>
+
+        <!-- File search bar -->
+        <div class="perm-search-bar" id="permSearchBar" style="display:none;margin-bottom:12px;">
+          <input type="text" id="permFileSearch" class="perm-search-input" placeholder="搜索文件…" oninput="filterPermFiles()">
+        </div>
+
+        <div id="keyFilePermsContainer">
+          <p class="empty-hint" id="keyFilePermsEmpty">请先选择一个密钥</p>
+        </div>
+
+        <div style="margin-top:16px;text-align:right;display:none;" id="saveBar">
+          <button class="btn btn-primary" id="saveKeyFilePermsBtn" onclick="saveKeyFilePermissions()" disabled>保存全部权限设置</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+  let keys = <%- JSON.stringify(typeof keys !== 'undefined' ? keys : []) %>;
+  let files = <%- JSON.stringify(typeof files !== 'undefined' ? files : []) %>;
+  const baseUrl = '<%= typeof baseUrl !== "undefined" ? baseUrl : "" %>';
+
+  // Track pending permission changes: { file_uuid: 'preview'|'download'|'both'|'none' }
+  let keyFilePermChanges = {};
+  let selectedKeyId = null;
+  let selectedKey = null;
+  let filePerms = {}; // Current per-file overrides for selected key
+  let selectedBatchPerm = null;
+
+  // ============ Key Management ============
+  function renderKeyList(keys) {
+    const container = document.getElementById('keyList');
+    const empty = document.getElementById('keyEmpty');
+
+    if (keys.length === 0) {
+      empty.style.display = 'block';
+      container.innerHTML = '';
+      container.appendChild(empty);
+      return;
+    }
+
+    empty.style.display = 'none';
+
+    let html = '<div class="file-table-wrapper" style="margin-top: 12px;"><table class="file-table"><thead><tr>';
+    html += '<th style="width:180px">密钥</th><th>备注</th><th style="width:100px">权限</th><th style="width:80px">状态</th><th style="width:120px">创建时间</th><th style="width:220px">操作</th>';
+    html += '</tr></thead><tbody>';
+
+    keys.forEach(k => {
+      const isRevoked = k.status === 'revoked';
+      const permLabel = k.permission === 'both' ? '预览+下载' : k.permission === 'download' ? '仅下载' : '仅预览';
+      const permClass = k.permission === 'both' ? 'vis-public' : k.permission === 'download' ? 'vis-download_only' : 'vis-download_only';
+      const statusLabel = isRevoked ? '已撤销' : '有效';
+      const statusClass = isRevoked ? 'vis-hidden' : 'vis-public';
+      const rowStyle = isRevoked ? 'opacity:0.5;' : '';
+
+      html += `<tr id="key-${k.id}" style="${rowStyle}">`;
+      html += `<td><code style="font-size:13px;font-family:'SF Mono',monospace;background:var(--apple-grey);padding:2px 8px;border-radius:4px;">${k.key}</code></td>`;
+      html += `<td>${k.label || '—'}</td>`;
+      html += `<td><span class="vis-select ${permClass}" style="cursor:default">${permLabel}</span></td>`;
+      html += `<td><span class="vis-select ${statusClass}" style="cursor:default;font-size:11px;">${statusLabel}</span></td>`;
+      html += `<td style="font-size:13px;color:var(--apple-text-secondary)">${k.created_at}</td>`;
+      html += `<td>`;
+      if (!isRevoked) {
+        html += `<button class="btn btn-sm btn-secondary" onclick="copyKeyLink('${k.key}')" title="复制带密钥的链接">复制链接</button> `;
+        html += `<select onchange="changeKeyPermission(${k.id}, this.value)" class="vis-select" style="font-size:11px;">`;
+        html += `<option value="preview" ${k.permission === 'preview' ? 'selected' : ''}>仅预览</option>`;
+        html += `<option value="download" ${k.permission === 'download' ? 'selected' : ''}>仅下载</option>`;
+        html += `<option value="both" ${k.permission === 'both' ? 'selected' : ''}>预览+下载</option>`;
+        html += `</select> `;
+        html += `<button class="btn btn-sm btn-danger" onclick="revokeKey(${k.id})" title="撤销密钥">撤销</button>`;
+      } else {
+        html += `<button class="btn btn-sm btn-secondary" onclick="reactivateKey(${k.id})">重新启用</button> `;
+        html += `<button class="btn btn-sm btn-danger" onclick="deleteKey(${k.id})">删除</button>`;
+      }
+      html += `</td></tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  }
+
+  async function createKey() {
+    const label = document.getElementById('keyLabel').value.trim();
+    const permission = document.getElementById('keyPermission').value;
+
+    try {
+      const resp = await fetch('/admin/keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: label || null, permission })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        document.getElementById('keyLabel').value = '';
+        await loadKeys();
+      } else {
+        alert('创建失败: ' + data.error);
+      }
+    } catch (err) {
+      alert('创建失败: ' + err.message);
+    }
+  }
+
+  async function loadKeys() {
+    try {
+      const resp = await fetch('/admin/keys/list');
+      const data = await resp.json();
+      keys = data.keys;
+      renderKeyList(data.keys);
+      loadKeyFileSelect();
+    } catch (err) {
+      console.error('Failed to load keys', err);
+    }
+  }
+
+  async function changeKeyPermission(id, permission) {
+    try {
+      const resp = await fetch(`/admin/keys/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permission })
+      });
+      const data = await resp.json();
+      if (!data.success) {
+        alert('修改失败: ' + data.error);
+        loadKeys();
+      }
+    } catch (err) {
+      alert('修改失败: ' + err.message);
+    }
+  }
+
+  async function revokeKey(id) {
+    if (!confirm('撤销后，持有该密钥的用户将立即失去访问权限。确定撤销？')) return;
+    try {
+      const resp = await fetch(`/admin/keys/${id}/revoke`, { method: 'POST' });
+      const data = await resp.json();
+      if (data.success) {
+        await loadKeys();
+      } else {
+        alert('操作失败: ' + data.error);
+      }
+    } catch (err) {
+      alert('操作失败: ' + err.message);
+    }
+  }
+
+  async function reactivateKey(id) {
+    try {
+      const resp = await fetch(`/admin/keys/${id}/reactivate`, { method: 'POST' });
+      const data = await resp.json();
+      if (data.success) {
+        await loadKeys();
+      } else {
+        alert('操作失败: ' + data.error);
+      }
+    } catch (err) {
+      alert('操作失败: ' + err.message);
+    }
+  }
+
+  async function deleteKey(id) {
+    if (!confirm('确定要永久删除此密钥吗？')) return;
+    try {
+      const resp = await fetch(`/admin/keys/${id}/delete`, { method: 'POST' });
+      const data = await resp.json();
+      if (data.success) {
+        await loadKeys();
+      } else {
+        alert('删除失败: ' + data.error);
+      }
+    } catch (err) {
+      alert('删除失败: ' + err.message);
+    }
+  }
+
+  function copyKeyLink(key) {
+    const shareUrl = baseUrl + '/';
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      alert('分享链接已复制！\n\n🔗 链接：' + shareUrl + '\n🔑 密钥：' + key + '\n\n请将链接发给用户，并单独告知其密钥。\n用户在页面顶部输入密钥即可访问对应权限的内容。');
+    }).catch(() => {
+      prompt('复制此链接发送给用户（密钥请单独告知）：\n\n链接：', shareUrl);
+      prompt('用户密钥：', key);
+    });
+  }
+
+  // ============ Key-File Permission Management ============
+
+  function loadKeyFileSelect() {
+    const select = document.getElementById('keyFileSelect');
+    select.innerHTML = '<option value="">— 请选择 —</option>';
+    keys.forEach(k => {
+      const label = k.label ? `${k.label} (${k.key})` : k.key;
+      const permText = k.permission === 'both' ? '预览+下载' : k.permission === 'download' ? '仅下载' : '仅预览';
+      select.innerHTML += `<option value="${k.id}">${label} [全局: ${permText}]</option>`;
+    });
+  }
+
+  async function loadKeyFilePermissions() {
+    const select = document.getElementById('keyFileSelect');
+    const keyId = select.value;
+    if (!keyId) {
+      document.getElementById('keyFilePermsContainer').innerHTML = '<p class="empty-hint">请先选择一个密钥</p>';
+      document.getElementById('batchPermBar').style.display = 'none';
+      document.getElementById('saveBar').style.display = 'none';
+      document.getElementById('saveKeyFilePermsBtn').disabled = true;
+      selectedKeyId = null;
+      selectedKey = null;
+      keyFilePermChanges = {};
+      filePerms = {};
+      selectedBatchPerm = null;
+      return;
+    }
+
+    selectedKeyId = keyId;
+    keyFilePermChanges = {};
+    selectedBatchPerm = null;
+
+    try {
+      const resp = await fetch(`/admin/keys/${keyId}/files`);
+      const data = await resp.json();
+      selectedKey = data.key;
+      const perms = data.files;
+      filePerms = {};
+
+      perms.forEach(f => {
+        filePerms[f.uuid] = f.keyPermission; // null | 'preview' | 'download' | 'both'
+      });
+
+      if (perms.length === 0) {
+        document.getElementById('keyFilePermsContainer').innerHTML = '<p class="empty-hint">暂无文件</p>';
+        document.getElementById('batchPermBar').style.display = 'none';
+        document.getElementById('saveBar').style.display = 'none';
+        document.getElementById('saveKeyFilePermsBtn').disabled = true;
+        return;
+      }
+
+      // Build file table with checkboxes
+      let html = '<div class="file-table-wrapper"><table class="perm-file-table"><thead><tr>';
+      html += '<th class="col-check"><input type="checkbox" id="permCheckAll" onchange="handlePermCheckAll(this)"></th>';
+      html += '<th class="col-name">文件名</th>';
+      html += '<th class="col-status">当前覆盖权限</th>';
+      html += '</tr></thead><tbody>';
+
+      perms.forEach(f => {
+        const current = f.keyPermission;
+        let badgeHtml;
+        if (current === 'both') {
+          badgeHtml = '<span class="perm-badge perm-badge-both">预览+下载</span>';
+        } else if (current === 'download') {
+          badgeHtml = '<span class="perm-badge perm-badge-download">仅下载</span>';
+        } else if (current === 'preview') {
+          badgeHtml = '<span class="perm-badge perm-badge-preview">仅预览</span>';
+        } else {
+          const globalText = selectedKey.permission === 'both' ? '预览+下载' : selectedKey.permission === 'download' ? '仅下载' : '仅预览';
+          badgeHtml = `<span class="perm-badge perm-badge-default">默认 · 沿用全局(${globalText})</span>`;
+        }
+
+        html += `<tr class="perm-file-row" data-uuid="${f.uuid}">`;
+        html += `<td class="col-check"><input type="checkbox" class="perm-checkbox" value="${f.uuid}" onchange="onPermCheckChange()"></td>`;
+        html += `<td class="col-name">${f.original_name}</td>`;
+        html += `<td class="col-status" id="permStatus-${f.uuid}">${badgeHtml}</td>`;
+        html += `</tr>`;
+      });
+
+      html += '</tbody></table></div>';
+      document.getElementById('keyFilePermsContainer').innerHTML = html;
+      document.getElementById('batchPermBar').style.display = 'flex';
+      document.getElementById('permSearchBar').style.display = 'block';
+      document.getElementById('permFileSearch').value = '';
+      document.getElementById('saveBar').style.display = 'block';
+      document.getElementById('saveKeyFilePermsBtn').disabled = true;
+      document.getElementById('batchCheckCount').textContent = '已选 0 个文件';
+      updateRadioButtons();
+    } catch (err) {
+      console.error('Failed to load key file permissions:', err);
+    }
+  }
+
+  function handlePermCheckAll(el) {
+    document.querySelectorAll('.perm-checkbox').forEach(cb => { cb.checked = el.checked; });
+    onPermCheckChange();
+  }
+
+  function filterPermFiles() {
+    const q = document.getElementById('permFileSearch').value.trim().toLowerCase();
+    document.querySelectorAll('.perm-file-row').forEach(row => {
+      const name = row.querySelector('.col-name').textContent.toLowerCase();
+      row.style.display = q ? (name.includes(q) ? '' : 'none') : '';
+    });
+  }
+
+  function onPermCheckChange() {
+    const checked = getCheckedUuids();
+    document.getElementById('batchCheckCount').textContent = `已选 ${checked.length} 个文件`;
+    updateRadioButtons();
+    updateApplyButton();
+  }
+
+  function getCheckedUuids() {
+    return Array.from(document.querySelectorAll('.perm-checkbox:checked')).map(cb => cb.value);
+  }
+
+  function selectBatchPerm(perm) {
+    selectedBatchPerm = perm;
+    updateRadioButtons();
+    updateApplyButton();
+  }
+
+  function updateRadioButtons() {
+    document.querySelectorAll('#permRadioGroup .perm-radio-btn').forEach(btn => {
+      btn.classList.toggle('selected', btn.dataset.perm === selectedBatchPerm);
+    });
+  }
+
+  function updateApplyButton() {
+    const checked = getCheckedUuids();
+    document.getElementById('applyBatchBtn').disabled = checked.length === 0 || selectedBatchPerm === null;
+  }
+
+  function applyBatchPerm() {
+    if (!selectedKeyId || selectedBatchPerm === null) return;
+
+    const checked = getCheckedUuids();
+    if (checked.length === 0) return;
+
+    checked.forEach(uuid => {
+      if (selectedBatchPerm === 'none') {
+        delete keyFilePermChanges[uuid];
+        // Reset status display
+        const cell = document.getElementById('permStatus-' + uuid);
+        if (cell && selectedKey) {
+          const globalText = selectedKey.permission === 'both' ? '预览+下载' : selectedKey.permission === 'download' ? '仅下载' : '仅预览';
+          cell.innerHTML = '<span class="perm-badge perm-badge-default">默认 · 沿用全局(' + globalText + ')</span>';
+        }
+      } else {
+        keyFilePermChanges[uuid] = selectedBatchPerm;
+        const cell = document.getElementById('permStatus-' + uuid);
+        if (cell) {
+          const labels = { preview: ['perm-badge-preview', '仅预览'],
+                          download: ['perm-badge-download', '仅下载'],
+                          both: ['perm-badge-both', '预览+下载'] };
+          const [cls, text] = labels[selectedBatchPerm];
+          cell.innerHTML = `<span class="perm-badge ${cls}">${text} <small style="opacity:0.6;">(待保存)</small></span>`;
+        }
+      }
+    });
+
+    // Uncheck all for next batch
+    document.querySelectorAll('.perm-checkbox:checked').forEach(cb => { cb.checked = false; });
+    document.getElementById('permCheckAll').checked = false;
+    document.getElementById('batchCheckCount').textContent = '已选 0 个文件';
+    selectedBatchPerm = null;
+    updateRadioButtons();
+    updateApplyButton();
+
+    // Enable save button
+    document.getElementById('saveKeyFilePermsBtn').disabled = Object.keys(keyFilePermChanges).length === 0;
+  }
+
+  async function saveKeyFilePermissions() {
+    if (!selectedKeyId || Object.keys(keyFilePermChanges).length === 0) return;
+
+    const permissions = Object.entries(keyFilePermChanges).map(([file_uuid, permission]) => ({
+      file_uuid,
+      permission
+    }));
+
+    try {
+      const resp = await fetch(`/admin/keys/${selectedKeyId}/file-permissions/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        keyFilePermChanges = {};
+        document.getElementById('saveKeyFilePermsBtn').disabled = true;
+        await loadKeyFilePermissions();
+      } else {
+        alert('保存失败: ' + data.error);
+      }
+    } catch (err) {
+      alert('保存失败: ' + err.message);
+    }
+  }
+
+  // Init
+  loadKeys();
+  </script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title + ' — ' : '' %>Team Cloud Drive</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('admin-nav', { currentPage: 'files' }) %>
+
+  <main class="container">
+    <div class="dash-header">
+      <h1>文件管理</h1>
+    </div>
+
+    <% if (success) { %>
+    <div class="alert alert-success"><%= success %></div>
+    <% } %>
+    <% if (error) { %>
+    <div class="alert alert-error"><%= error %></div>
+    <% } %>
+
+    <!-- Upload Section -->
+    <div class="admin-section">
+      <h2>上传文件</h2>
+      <form method="POST" action="/admin/upload" enctype="multipart/form-data" class="admin-form" id="uploadForm">
+        <div class="form-row">
+          <div class="file-input-wrapper admin-file-input">
+            <input type="file" id="files" name="files" multiple required
+                   accept=".doc,.docx,.pages,.xls,.xlsx,.numbers,.ppt,.pptx,.key,.pdf,.txt,.csv,.md,.png,.jpg,.jpeg,.gif,.bmp,.svg,.zip,.mp4,.mov">
+            <label for="files" class="file-label" id="fileLabel">
+              <span class="upload-icon">＋</span>
+              <span>点击选择文件（可多选）</span>
+            </label>
+          </div>
+        </div>
+        <div id="selectedFiles" class="selected-files"></div>
+        <div class="form-row">
+          <input type="text" name="description" placeholder="文件描述（可选）" style="flex:1">
+          <select name="visibility">
+            <option value="public">公开 · 可查看+下载</option>
+            <option value="download_only">仅查看 · 不可下载</option>
+            <option value="hidden">隐藏 · 暂不公开</option>
+          </select>
+          <button type="submit" class="btn btn-primary" id="uploadBtn">上传</button>
+        </div>
+        <p class="form-hint">支持 Word、Pages、Excel、Numbers、PPT、Keynote、PDF、文本、图片、视频 · 单文件最大 500MB · 一次最多 20 个</p>
+      </form>
+    </div>
+
+    <!-- File List -->
+    <div class="admin-section">
+      <div class="admin-list-header">
+        <h2>全部文件 · <%= files.length %> 个</h2>
+        <div class="admin-batch-actions">
+          <select id="batchVisibility" class="btn btn-sm btn-secondary">
+            <option value="">批量设置可见性…</option>
+            <option value="public">设为公开</option>
+            <option value="download_only">设为仅查看</option>
+            <option value="hidden">设为隐藏</option>
+          </select>
+          <button class="btn btn-sm btn-danger" onclick="batchDelete()">批量删除</button>
+        </div>
+      </div>
+      <% if (files.length === 0) { %>
+      <p class="empty-hint">暂无文件，上传第一个文件吧</p>
+      <% } else { %>
+      <div class="file-table-wrapper">
+        <table class="file-table admin-table">
+          <thead>
+            <tr>
+              <th class="col-check"><input type="checkbox" id="adminCheckAll" onchange="handleAdminCheckAll(this)"></th>
+              <th class="col-name">名称</th>
+              <th class="col-size">大小</th>
+              <th class="col-type">种类</th>
+              <th class="col-date">修改时间</th>
+              <th class="col-vis">可见性</th>
+              <th class="col-action">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% files.forEach(function(file) { %>
+            <tr class="file-row" id="file-<%= file.uuid %>" data-uuid="<%= file.uuid %>">
+              <td class="col-check">
+                <input type="checkbox" class="admin-checkbox" value="<%= file.uuid %>">
+              </td>
+              <td class="col-name">
+                <div class="file-name-cell">
+                  <span class="file-icon-small"><%= file.icon %></span>
+                  <span class="file-name-text"><%= file.original_name %></span>
+                </div>
+              </td>
+              <td class="col-size"><%= file.sizeFormatted %></td>
+              <td class="col-type"><%= file.category === 'document' ? '文档' : file.category === 'spreadsheet' ? '表格' : file.category === 'presentation' ? '演示' : file.category === 'video' ? '视频' : '其他' %></td>
+              <td class="col-date"><%= file.created_at %></td>
+              <td class="col-vis">
+                <select onchange="changeVisibility('<%= file.uuid %>', this.value)" class="vis-select vis-<%= file.visibility %>">
+                  <option value="public" <%= file.visibility === 'public' ? 'selected' : '' %>>公开</option>
+                  <option value="download_only" <%= file.visibility === 'download_only' ? 'selected' : '' %>>仅查看</option>
+                  <option value="hidden" <%= file.visibility === 'hidden' ? 'selected' : '' %>>隐藏</option>
+                </select>
+              </td>
+              <td class="col-action">
+                <a href="/files/<%= file.uuid %>" target="_blank" class="btn btn-sm btn-secondary" title="预览">预览</a>
+                <button onclick="deleteFile('<%= file.uuid %>')" class="btn btn-sm btn-danger" title="删除">删除</button>
+              </td>
+            </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+      <% } %>
+    </div>
+  </main>
+
+  <script>
+  // ============ File upload ============
+  const fileInput = document.getElementById('files');
+  const fileLabel = document.getElementById('fileLabel');
+  const selectedDiv = document.getElementById('selectedFiles');
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) {
+      fileLabel.innerHTML = `<span class="upload-icon">✓</span><span>已选择 ${fileInput.files.length} 个文件</span>`;
+      let html = '<ul class="selected-list">';
+      for (let i = 0; i < fileInput.files.length; i++) {
+        const f = fileInput.files[i];
+        const sizeMB = (f.size / 1048576).toFixed(1);
+        html += `<li>${f.name} <span class="text-muted">(${sizeMB} MB)</span></li>`;
+      }
+      html += '</ul>';
+      selectedDiv.innerHTML = html;
+    } else {
+      fileLabel.innerHTML = '<span class="upload-icon">＋</span><span>点击选择文件（可多选）</span>';
+      selectedDiv.innerHTML = '';
+    }
+  });
+
+  function handleAdminCheckAll(el) {
+    document.querySelectorAll('.admin-checkbox').forEach(cb => { cb.checked = el.checked; });
+  }
+
+  function getSelectedUuids() {
+    return Array.from(document.querySelectorAll('.admin-checkbox:checked')).map(cb => cb.value);
+  }
+
+  document.getElementById('batchVisibility').addEventListener('change', async function() {
+    const vis = this.value;
+    if (!vis) return;
+    const uuids = getSelectedUuids();
+    if (uuids.length === 0) { alert('请先选择文件'); this.value = ''; return; }
+
+    try {
+      const resp = await fetch('/admin/files/batch/visibility', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uuids, visibility: vis })
+      });
+      const data = await resp.json();
+      if (data.success) location.reload();
+      else alert('操作失败: ' + data.error);
+    } catch (err) {
+      alert('操作失败: ' + err.message);
+    }
+    this.value = '';
+  });
+
+  async function batchDelete() {
+    const uuids = getSelectedUuids();
+    if (uuids.length === 0) { alert('请先选择文件'); return; }
+    if (!confirm(`确定要删除选中的 ${uuids.length} 个文件吗？此操作不可恢复！`)) return;
+
+    try {
+      const resp = await fetch('/admin/files/batch/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uuids })
+      });
+      const data = await resp.json();
+      if (data.success) location.reload();
+      else alert('操作失败: ' + data.error);
+    } catch (err) {
+      alert('操作失败: ' + err.message);
+    }
+  }
+
+  async function changeVisibility(uuid, visibility) {
+    try {
+      const resp = await fetch(`/admin/files/${uuid}/visibility`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visibility })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        const select = document.querySelector(`#file-${uuid} .vis-select`);
+        select.className = `vis-select vis-${visibility}`;
+      } else {
+        alert('设置失败: ' + data.error);
+        location.reload();
+      }
+    } catch (err) {
+      alert('操作失败: ' + err.message);
+    }
+  }
+
+  async function deleteFile(uuid) {
+    if (!confirm('确定要删除此文件吗？此操作不可恢复！')) return;
+    try {
+      const resp = await fetch(`/admin/files/${uuid}/delete`, { method: 'POST' });
+      const data = await resp.json();
+      if (data.success) {
+        document.getElementById(`file-${uuid}`).remove();
+      } else {
+        alert('删除失败: ' + data.error);
+      }
+    } catch (err) {
+      alert('操作失败: ' + err.message);
+    }
+  }
+  </script>
+</body>
+</html>

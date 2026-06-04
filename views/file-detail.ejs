@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title + ' — ' : '' %>Team Cloud Drive</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="/" class="nav-brand">Team Cloud Drive</a>
+      <div class="nav-links">
+        <% if (isAdmin) { %>
+        <a href="/admin" class="nav-link">管理后台</a>
+        <a href="/admin/logout" class="nav-link nav-logout">退出</a>
+        <% } else { %>
+        <a href="/admin/login" class="nav-link">管理登录</a>
+        <% } %>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div class="file-detail">
+      <div class="detail-header">
+        <a href="/" class="btn btn-secondary">← 返回列表</a>
+        <h1><%= file.icon %> <%= file.original_name %></h1>
+        <div class="detail-actions">
+          <% if (canDownload) { %>
+          <a href="/files/<%= file.uuid %>/download" class="btn btn-primary">下载文件</a>
+          <% } else { %>
+          <span class="btn btn-disabled">仅可预览</span>
+          <% } %>
+        </div>
+      </div>
+
+      <div class="detail-body">
+        <div class="detail-meta">
+          <div class="meta-card">
+            <h3>文件信息</h3>
+            <table class="meta-table">
+              <tr><td>文件名</td><td><%= file.original_name %></td></tr>
+              <tr><td>类型</td><td><%= file.category === 'document' ? '文档' : file.category === 'spreadsheet' ? '表格' : file.category === 'presentation' ? '演示' : '其他' %></td></tr>
+              <tr><td>大小</td><td><%= file.sizeFormatted %></td></tr>
+              <tr><td>上传时间</td><td><%= file.created_at %></td></tr>
+              <% if (file.description) { %>
+              <tr><td>描述</td><td><%= file.description %></td></tr>
+              <% } %>
+            </table>
+          </div>
+        </div>
+
+        <div class="detail-preview">
+          <h3>预览</h3>
+          <% if (file.previewable) { %>
+            <% if (file.mime_type === 'application/pdf') { %>
+            <div class="preview-box">
+              <iframe src="/files/<%= file.uuid %>/raw#toolbar=0" width="100%" height="600px" style="border:none;"></iframe>
+            </div>
+            <% } else if (file.mime_type.startsWith('image/')) { %>
+            <div class="preview-box">
+              <img src="/files/<%= file.uuid %>/raw" alt="<%= file.original_name %>" class="preview-image">
+            </div>
+            <% } else { %>
+            <div class="preview-box">
+              <pre class="preview-text"><%- (() => { try { const fs = require('fs'); const p = require('path'); const cfg = require('../src/config'); return fs.readFileSync(p.join(cfg.uploadDir, file.uuid, file.original_name), 'utf8').substring(0, 50000).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); } catch(e) { return ''; } })() %></pre>
+            </div>
+            <% } %>
+          <% } else { %>
+          <div class="preview-unavailable">
+            <p>此文件类型不支持在线预览</p>
+            <p>请下载后在本地应用中打开</p>
+          </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/main.js"></script>
+  <script src="/js/upload.js"></script>
+</body>
+</html>

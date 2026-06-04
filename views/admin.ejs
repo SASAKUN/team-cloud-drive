@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title + ' — ' : '' %>Team Cloud Drive</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <%- include('admin-nav') %>
+
+  <main class="container">
+    <div class="dash-header">
+      <h1>管理后台</h1>
+    </div>
+
+    <div class="admin-overview">
+      <div class="overview-cards">
+        <a href="/admin/files" class="overview-card">
+          <div class="overview-card-icon">📂</div>
+          <div class="overview-card-info">
+            <div class="overview-card-num"><%= fileCount %></div>
+            <div class="overview-card-label">文件管理</div>
+          </div>
+          <div class="overview-card-hint">上传、查看、管理文件 →</div>
+        </a>
+        <a href="/admin/bundles" class="overview-card">
+          <div class="overview-card-icon">📦</div>
+          <div class="overview-card-info">
+            <div class="overview-card-num"><%= bundleCount %></div>
+            <div class="overview-card-label">文件包管理</div>
+          </div>
+          <div class="overview-card-hint">创建、编辑文件包 →</div>
+        </a>
+        <a href="/admin/keys" class="overview-card">
+          <div class="overview-card-icon">🔑</div>
+          <div class="overview-card-info">
+            <div class="overview-card-num"><%= keyCount %></div>
+            <div class="overview-card-label">密钥管理</div>
+          </div>
+          <div class="overview-card-hint">管理密钥与文件权限 →</div>
+        </a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

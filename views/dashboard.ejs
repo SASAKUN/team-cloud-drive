@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title + ' — ' : '' %>Team Cloud Drive</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* Key entry bar */
+    .key-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      margin-bottom: 24px;
+      border-radius: var(--radius-lg);
+      font-size: 13px;
+    }
+    .key-bar-welcome {
+      background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+      border: 1px solid #c8e6c9;
+    }
+    .key-bar-prompt {
+      background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+      border: 1px solid #b3d4fc;
+    }
+    .key-bar form {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+    .key-bar input {
+      flex: 1;
+      max-width: 280px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-family: inherit;
+      border: 1px solid var(--apple-border-strong);
+      border-radius: var(--radius-full);
+      background: #ffffff;
+      outline: none;
+    }
+    .key-bar input:focus {
+      border-color: var(--apple-blue);
+      box-shadow: 0 0 0 3px rgba(0,113,227,0.08);
+    }
+    .key-bar .key-label {
+      font-weight: 500;
+      white-space: nowrap;
+      color: var(--apple-text);
+    }
+    .key-bar .key-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .key-bar .perm-badge {
+      font-size: 12px;
+      padding: 2px 10px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+    .perm-badge-preview { background: #fff3e0; color: #e65100; }
+    .perm-badge-download { background: #e8f5e9; color: #2e7d32; }
+    .perm-badge-both { background: #e3f2fd; color: #1565c0; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="/" class="nav-brand">Team Cloud Drive</a>
+      <div class="nav-links">
+        <% if (isAdmin) { %>
+        <a href="/admin" class="nav-link">管理后台</a>
+        <a href="/admin/logout" class="nav-link nav-logout">退出</a>
+        <% } else { %>
+        <a href="/admin/login" class="nav-link">管理登录</a>
+        <% } %>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div class="dashboard">
+      <!-- Key status bar -->
+      <% if (accessKey) { %>
+      <div class="key-bar key-bar-welcome">
+        <span class="key-label">🔑 已使用访问密钥</span>
+        <span class="perm-badge <%= accessKey.permission === 'both' ? 'perm-badge-both' : accessKey.permission === 'download' ? 'perm-badge-download' : 'perm-badge-preview' %>">
+          <%= accessKey.permission === 'both' ? '预览+下载' : accessKey.permission === 'download' ? '可下载' : '仅预览' %>
+        </span>
+        <span style="color:var(--apple-text-secondary);margin-left:4px;">
+          <% if (accessKey.label) { %>（<%= accessKey.label %>）<% } %>
+        </span>
+        <span style="flex:1;"></span>
+        <a href="/key-entry" class="btn btn-sm btn-secondary" style="font-size:12px;">切换密钥</a>
+        <a href="/key-clear" class="btn btn-sm btn-secondary" style="font-size:12px;">清除密钥</a>
+      </div>
+      <% } else { %>
+      <div class="key-bar key-bar-prompt">
+        <span class="key-label">🔑 访问密钥</span>
+        <form method="POST" action="/key-entry">
+          <input type="hidden" name="redirect" value="/">
+          <input type="text" name="key" placeholder="输入您的访问密钥解锁更多内容…" autocomplete="off">
+          <button type="submit" class="btn btn-sm btn-primary">验证</button>
+        </form>
+      </div>
+      <% } %>
+
+      <div class="dash-header">
+        <div>
+          <h1>共享文件包</h1>
+          <p class="dash-subtitle"><%= bundles.length %> 个文件包</p>
+        </div>
+      </div>
+
+      <!-- Announcement Bar -->
+      <% if (typeof recentFiles !== 'undefined' && recentFiles.length > 0) { %>
+      <div class="announcement-bar">
+        <span class="announcement-label">最近更新</span>
+        <% recentFiles.forEach(function(f, i) { %>
+          <a href="/files/<%= f.uuid %>" class="announcement-link"><%= f.original_name %><span class="announcement-date">（<%= f.created_at ? new Date(f.created_at.replace(' ','T') + 'Z').toLocaleDateString('zh-CN', {month:'short',day:'numeric'}) : '' %>）</span></a>
+        <% }); %>
+      </div>
+      <% } %>
+
+      <!-- Bundle Cards -->
+      <% if (typeof bundles !== 'undefined' && bundles.length > 0) { %>
+      <div class="bundle-cards">
+        <% bundles.forEach(function(b) {
+          const fileCount = b.files.length;
+          const childCount = b.children ? b.children.length : 0;
+          const totalCount = fileCount + childCount;
+        %>
+        <div class="bundle-card public-bundle <%= b.isHidden ? 'bundle-hidden' : '' %> collapsed" id="bcard-<%= b.id %>" data-file-count="<%= fileCount %>">
+          <div class="bundle-card-header" onclick="toggleBundleCard('<%= b.id %>')">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span class="bundle-chevron" id="chevron-<%= b.id %>">▸</span>
+              <strong style="font-size:15px;"><%= b.name %></strong>
+              <% if (b.isHidden) { %>
+              <span class="bundle-badge hidden">隐藏</span>
+              <% } %>
+              <span style="font-size:12px;color:var(--apple-text-secondary);">
+                <%= fileCount %> 个文件<%= childCount > 0 ? ' · ' + childCount + ' 个子包' : '' %>
+              </span>
+            </div>
+            <a href="/bundles/<%= b.id %>/download" class="btn btn-sm btn-primary" onclick="event.stopPropagation()">下载全部</a>
+          </div>
+
+          <div class="bundle-body" id="bbody-<%= b.id %>">
+            <% if (b.description) { %>
+            <p class="bundle-desc"><%= b.description %></p>
+            <% } %>
+
+            <% /* --- Bundle files with pagination & batch download --- */ %>
+            <% if (b.files.length > 0) { %>
+            <div class="bundle-file-search">
+              <input type="text" class="bundle-search-input" placeholder="搜索文件…" oninput="searchBundleFiles('<%= b.id %>', this.value)" onclick="event.stopPropagation()">
+            </div>
+            <div class="bundle-files-wrapper" data-bundle-id="<%= b.id %>" data-files='<%- JSON.stringify(b.files) %>'>
+              <div class="bundle-files" id="bundle-files-<%= b.id %>">
+                <% /* First page (8 items) rendered server-side for SEO */ %>
+                <% b.files.slice(0, 8).forEach(function(f) { %>
+                <div class="bundle-file-item" data-uuid="<%= f.uuid %>" data-downloadable="<%= f.canDownload %>">
+                  <input type="checkbox" class="bundle-file-checkbox" value="<%= f.uuid %>" onchange="onBundleFileCheck('<%= b.id %>')" <%= f.canDownload ? '' : 'disabled' %>>
+                  <a href="/files/<%= f.uuid %>" class="bundle-file-link">
+                    <span class="file-icon-small"><%= f.icon %></span>
+                    <span class="bundle-file-name"><%= f.original_name %></span>
+                  </a>
+                  <span class="bundle-file-size"><%= f.sizeFormatted %></span>
+                  <% if (f.canDownload) { %>
+                  <a href="/files/<%= f.uuid %>/download" class="btn btn-sm btn-primary" onclick="event.stopPropagation()">下载</a>
+                  <% } else { %>
+                  <span class="btn btn-sm btn-disabled">仅查看</span>
+                  <% } %>
+                </div>
+                <% }); %>
+              </div>
+              <% if (b.files.length > 8) { %>
+              <div class="bundle-pagination" id="pagination-<%= b.id %>">
+                <button class="page-btn prev" onclick="changeBundlePage('<%= b.id %>', -1);event.stopPropagation();" disabled>&lt;</button>
+                <span class="page-info" id="pageinfo-<%= b.id %>">1 / <%= Math.ceil(b.files.length / 8) %></span>
+                <button class="page-btn next" onclick="changeBundlePage('<%= b.id %>', 1);event.stopPropagation();">&gt;</button>
+              </div>
+              <% } %>
+              <div class="bundle-batch-bar" id="batchbar-<%= b.id %>">
+                <span class="batch-label" id="batchlabel-<%= b.id %>">已选择 0 个文件</span>
+                <button class="btn btn-sm btn-primary" id="batchbtn-<%= b.id %>" onclick="batchDownloadBundle('<%= b.id %>')" disabled>批量下载</button>
+              </div>
+            </div>
+            <% } %>
+
+            <% /* --- Child bundles --- */ %>
+            <% if (b.children && b.children.length > 0) { %>
+            <div class="bundle-children">
+              <% b.children.forEach(function(child) { %>
+              <div class="child-bundle">
+                <div class="child-bundle-header">
+                  <span class="child-label">子包</span>
+                  <strong style="font-size:13px;"><%= child.name %></strong>
+                  <span style="font-size:11px;color:var(--apple-text-secondary);"><%= child.files.length %> 个文件</span>
+                </div>
+                <% if (child.files.length > 0) { %>
+                <div class="child-bundle-files">
+                  <% child.files.forEach(function(f) { %>
+                  <div class="bundle-file-item child-file-item">
+                    <span class="bundle-file-check-spacer"></span>
+                    <a href="/files/<%= f.uuid %>" class="bundle-file-link">
+                      <span class="file-icon-small"><%= f.icon %></span>
+                      <span class="bundle-file-name"><%= f.original_name %></span>
+                    </a>
+                    <span class="bundle-file-size"><%= f.sizeFormatted %></span>
+                    <% if (f.canDownload) { %>
+                    <a href="/files/<%= f.uuid %>/download" class="btn btn-sm btn-primary" onclick="event.stopPropagation()">下载</a>
+                    <% } else { %>
+                    <span class="btn btn-sm btn-disabled">仅查看</span>
+                    <% } %>
+                  </div>
+                  <% }); %>
+                </div>
+                <% } %>
+              </div>
+              <% }); %>
+            </div>
+            <% } %>
+
+            <% if (b.files.length === 0 && (!b.children || b.children.length === 0)) { %>
+            <p class="bundle-empty">此文件包暂为空</p>
+            <% } %>
+          </div>
+        </div>
+        <% }); %>
+      </div>
+      <% } else { %>
+      <div class="empty-state" style="margin-top:40px;">
+        <p>暂无共享文件包</p>
+        <p class="empty-hint">管理员正在准备文件包，请稍后再来</p>
+      </div>
+      <% } %>
+    </div>
+  </main>
+
+  <script>
+  const BUNDLE_PAGE_SIZE = 8;
+
+  function toggleBundleCard(id) {
+    const card = document.getElementById('bcard-' + id);
+    const chevron = document.getElementById('chevron-' + id);
+    if (!card || !chevron) return;
+    card.classList.toggle('collapsed');
+    chevron.textContent = card.classList.contains('collapsed') ? '▸' : '▾';
+  }
+
+  /* ---- Bundle file pagination ---- */
+  function changeBundlePage(bundleId, delta) {
+    const wrapper = document.querySelector('.bundle-files-wrapper[data-bundle-id="' + bundleId + '"]');
+    if (!wrapper) return;
+    const files = JSON.parse(wrapper.dataset.files || '[]');
+    const totalPages = Math.ceil(files.length / BUNDLE_PAGE_SIZE);
+
+    const pageInfo = document.getElementById('pageinfo-' + bundleId);
+    if (!pageInfo) return;
+    let currentPage = parseInt(pageInfo.textContent.split(' / ')[0], 10) || 1;
+    currentPage += delta;
+    if (currentPage < 1 || currentPage > totalPages) return;
+
+    // Rebuild file list
+    const container = document.getElementById('bundle-files-' + bundleId);
+    const start = (currentPage - 1) * BUNDLE_PAGE_SIZE;
+    const end = start + BUNDLE_PAGE_SIZE;
+    const pageFiles = files.slice(start, end);
+
+    container.innerHTML = pageFiles.map(f => `
+      <div class="bundle-file-item" data-uuid="${f.uuid}" data-downloadable="${f.canDownload}">
+        <input type="checkbox" class="bundle-file-checkbox" value="${f.uuid}" onchange="onBundleFileCheck('${bundleId}')" ${f.canDownload ? '' : 'disabled'}>
+        <a href="/files/${f.uuid}" class="bundle-file-link">
+          <span class="file-icon-small">${f.icon}</span>
+          <span class="bundle-file-name">${f.original_name}</span>
+        </a>
+        <span class="bundle-file-size">${f.sizeFormatted}</span>
+        ${f.canDownload
+          ? `<a href="/files/${f.uuid}/download" class="btn btn-sm btn-primary" onclick="event.stopPropagation()">下载</a>`
+          : '<span class="btn btn-sm btn-disabled">仅查看</span>'}
+      </div>
+    `).join('');
+
+    // Update pagination controls
+    pageInfo.textContent = currentPage + ' / ' + totalPages;
+    const prevBtn = wrapper.querySelector('.page-btn.prev');
+    const nextBtn = wrapper.querySelector('.page-btn.next');
+    if (prevBtn) prevBtn.disabled = currentPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+
+    // Clear selection when switching page
+    onBundleFileCheck(bundleId);
+  }
+
+  /* ---- Bundle batch download ---- */
+  function onBundleFileCheck(bundleId) {
+    const wrapper = document.querySelector('.bundle-files-wrapper[data-bundle-id="' + bundleId + '"]');
+    if (!wrapper) return;
+    const checked = wrapper.querySelectorAll('.bundle-file-checkbox:checked');
+    const label = document.getElementById('batchlabel-' + bundleId);
+    const btn = document.getElementById('batchbtn-' + bundleId);
+    if (label) label.textContent = '已选择 ' + checked.length + ' 个文件';
+    if (btn) btn.disabled = checked.length === 0;
+  }
+
+  function batchDownloadBundle(bundleId) {
+    const wrapper = document.querySelector('.bundle-files-wrapper[data-bundle-id="' + bundleId + '"]');
+    if (!wrapper) return;
+    const checked = wrapper.querySelectorAll('.bundle-file-checkbox:checked');
+    if (checked.length === 0) return;
+
+    const uuids = Array.from(checked).map(cb => cb.value).join(',');
+    const url = '/batch/download?uuids=' + uuids;
+    window.location.href = url;
+  }
+
+  /* ---- Bundle file search ---- */
+  function searchBundleFiles(bundleId, query) {
+    const wrapper = document.querySelector('.bundle-files-wrapper[data-bundle-id="' + bundleId + '"]');
+    if (!wrapper) return;
+    const files = JSON.parse(wrapper.dataset.files || '[]');
+    const q = query.trim().toLowerCase();
+    const container = document.getElementById('bundle-files-' + bundleId);
+    const pagination = document.getElementById('pagination-' + bundleId);
+    const batchBar = document.getElementById('batchbar-' + bundleId);
+
+    if (!q) {
+      // Reset to page 1
+      const pageInfo = document.getElementById('pageinfo-' + bundleId);
+      if (pagination) pagination.style.display = '';
+      if (batchBar) batchBar.style.display = '';
+      if (pageInfo) pageInfo.textContent = '1 / ' + Math.ceil(files.length / BUNDLE_PAGE_SIZE);
+      const prevBtn = wrapper.querySelector('.page-btn.prev');
+      const nextBtn = wrapper.querySelector('.page-btn.next');
+      if (prevBtn) prevBtn.disabled = true;
+      if (nextBtn) nextBtn.disabled = files.length <= BUNDLE_PAGE_SIZE;
+
+      const pageFiles = files.slice(0, BUNDLE_PAGE_SIZE);
+      container.innerHTML = pageFiles.map(f => buildFileItem(f)).join('');
+      return;
+    }
+
+    // Searching: show all matching, hide pagination
+    if (pagination) pagination.style.display = 'none';
+    if (batchBar) batchBar.style.display = 'none';
+
+    const matched = files.filter(f => f.original_name.toLowerCase().includes(q));
+
+    if (matched.length === 0) {
+      container.innerHTML = '<div class="bundle-search-empty">未找到匹配的文件</div>';
+    } else {
+      container.innerHTML = matched.map(f => buildFileItem(f)).join('');
+    }
+  }
+
+  function buildFileItem(f) {
+    return `<div class="bundle-file-item" data-uuid="${f.uuid}" data-downloadable="${f.canDownload}">
+        <input type="checkbox" class="bundle-file-checkbox" value="${f.uuid}" onchange="onBundleFileCheck('${f.bundleId || ''}')" ${f.canDownload ? '' : 'disabled'}>
+        <a href="/files/${f.uuid}" class="bundle-file-link">
+          <span class="file-icon-small">${f.icon}</span>
+          <span class="bundle-file-name">${f.original_name}</span>
+        </a>
+        <span class="bundle-file-size">${f.sizeFormatted}</span>
+        ${f.canDownload
+          ? `<a href="/files/${f.uuid}/download" class="btn btn-sm btn-primary" onclick="event.stopPropagation()">下载</a>`
+          : '<span class="btn btn-sm btn-disabled">仅查看</span>'}
+      </div>`;
+  }
+  </script>
+</body>
+</html>

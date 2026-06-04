@@ -1,0 +1,28 @@
+{
+  "name": "team-cloud-drive",
+  "version": "1.0.0",
+  "description": "Team document sharing platform - like a cloud drive for your team",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "archiver": "5.3.2",
+    "better-sqlite3": "^12.10.0",
+    "cookie-session": "^2.1.1",
+    "dotenv": "^17.4.2",
+    "ejs": "^6.0.1",
+    "express": "^5.2.1",
+    "mime-types": "^3.0.2",
+    "morgan": "^1.11.0",
+    "multer": "^2.1.1",
+    "uuid": "^14.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
