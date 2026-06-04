@@ -413,7 +413,9 @@ router.post('/import', requireAdmin, (req, res) => {
           insertBundle.run(b.id, b.name, b.description, b.visibility, b.parent_id || null, b.created_at);
           if (Array.isArray(b.files)) {
             b.files.forEach((fileUuid, idx) => {
-              insertBundleFile.run(b.id, fileUuid, idx);
+              // Support both string uuids and {uuid} objects
+              const uuid = typeof fileUuid === 'string' ? fileUuid : fileUuid.uuid || fileUuid.file_uuid;
+              if (uuid) insertBundleFile.run(b.id, uuid, idx);
             });
           }
           if (Array.isArray(b.children)) {
@@ -421,11 +423,34 @@ router.post('/import', requireAdmin, (req, res) => {
               insertBundle.run(c.id, c.name, c.description, c.visibility, c.parent_id, c.created_at);
               if (Array.isArray(c.files)) {
                 c.files.forEach((fileUuid, idx) => {
-                  insertBundleFile.run(c.id, fileUuid, idx);
+                  const uuid = typeof fileUuid === 'string' ? fileUuid : fileUuid.uuid || fileUuid.file_uuid;
+                  if (uuid) insertBundleFile.run(c.id, uuid, idx);
                 });
               }
             });
           }
+        });
+      }
+
+      // Also support raw bundle_files table (from script export)
+      if (!Array.isArray(data.bundles) && Array.isArray(data.bundle_files)) {
+        const insertBundleFile = db.prepare(`
+          INSERT OR IGNORE INTO bundle_files (bundle_id, file_uuid, sort_order)
+          VALUES (?, ?, ?)
+        `);
+        data.bundle_files.forEach(bf => {
+          insertBundleFile.run(bf.bundle_id, bf.file_uuid, bf.sort_order || 0);
+        });
+      }
+
+      // Import key_file_permissions (raw table from script export)
+      if (Array.isArray(data.key_file_permissions)) {
+        const insertPerm = db.prepare(`
+          INSERT OR IGNORE INTO key_file_permissions (key_id, file_uuid, permission)
+          VALUES (?, ?, ?)
+        `);
+        data.key_file_permissions.forEach(p => {
+          insertPerm.run(p.key_id, p.file_uuid, p.permission);
         });
       }
     })();

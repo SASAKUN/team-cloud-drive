@@ -4,11 +4,20 @@
  * Usage: node scripts/export-data.js > data-export.json
  */
 
-const path = require('path');
-const fs = require('fs');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+// Temporarily silence console output during module loading
+const _log = console.log;
+const _warn = console.warn;
+const _info = console.info;
+console.log = () => {};
+console.warn = () => {};
+console.info = () => {};
 
 const db = require('../src/database');
+
+// Restore console
+console.log = _log;
+console.warn = _warn;
+console.info = _info;
 
 const data = {
   access_keys: db.prepare('SELECT * FROM access_keys').all(),

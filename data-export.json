@@ -1,0 +1,1148 @@
+{
+  "access_keys": [
+    {
+      "id": 5,
+      "key": "4d544c36",
+      "label": "Carin",
+      "permission": "both",
+      "status": "active",
+      "created_at": "2026-06-03 10:13:36"
+    },
+    {
+      "id": 7,
+      "key": "c51225b7",
+      "label": "Cecelia",
+      "permission": "both",
+      "status": "active",
+      "created_at": "2026-06-04 06:33:24"
+    },
+    {
+      "id": 8,
+      "key": "6f13dfc0",
+      "label": "Felicity",
+      "permission": "both",
+      "status": "active",
+      "created_at": "2026-06-04 06:34:12"
+    },
+    {
+      "id": 9,
+      "key": "e59c28d3",
+      "label": "Crystal",
+      "permission": "both",
+      "status": "active",
+      "created_at": "2026-06-04 06:36:20"
+    },
+    {
+      "id": 10,
+      "key": "8774ae26",
+      "label": "Lila",
+      "permission": "both",
+      "status": "active",
+      "created_at": "2026-06-04 06:39:12"
+    },
+    {
+      "id": 11,
+      "key": "8c6a8fd0",
+      "label": "Diana",
+      "permission": "both",
+      "status": "active",
+      "created_at": "2026-06-04 06:40:44"
+    },
+    {
+      "id": 12,
+      "key": "4d6e977a",
+      "label": "Victoria",
+      "permission": "both",
+      "status": "active",
+      "created_at": "2026-06-04 06:40:50"
+    },
+    {
+      "id": 13,
+      "key": "9985e0d6",
+      "label": "Winnie",
+      "permission": "preview",
+      "status": "active",
+      "created_at": "2026-06-04 07:02:59"
+    }
+  ],
+  "files": [
+    {
+      "id": 4,
+      "uuid": "d1bb769a-ffed-4f99-be13-0f678b814a99",
+      "original_name": "雅思阅读G5讲义-V26-20260507-from 阅读组.pages",
+      "stored_name": "雅思阅读G5讲义-V26-20260507-from 阅读组.pages",
+      "mime_type": "application/x-iwork-pages-sffpages",
+      "size_bytes": 2474755,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-03 10:12:31"
+    },
+    {
+      "id": 5,
+      "uuid": "5384572d-b54d-4f15-85a9-490bf71f0b49",
+      "original_name": "雅思阅读G5讲义-V26-20260507-from 阅读组.pdf",
+      "stored_name": "雅思阅读G5讲义-V26-20260507-from 阅读组.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 2611613,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-03 10:12:43"
+    },
+    {
+      "id": 6,
+      "uuid": "e99ade97-f3c3-45c9-bd95-78636635c6ba",
+      "original_name": "雅思阅读基础讲义-V27-20260513-from 阅读组.pages",
+      "stored_name": "雅思阅读基础讲义-V27-20260513-from 阅读组.pages",
+      "mime_type": "application/x-iwork-pages-sffpages",
+      "size_bytes": 1566197,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-03 10:12:43"
+    },
+    {
+      "id": 7,
+      "uuid": "95bc946c-00e3-4a31-a796-eff2bff69e16",
+      "original_name": "雅思阅读基础讲义-V27-20260513-from 阅读组.pdf",
+      "stored_name": "雅思阅读基础讲义-V27-20260513-from 阅读组.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 1376154,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-03 10:12:43"
+    },
+    {
+      "id": 8,
+      "uuid": "86277a35-23c0-433d-837e-03ecbda518df",
+      "original_name": "雅思阅读提高衔接进阶讲义-V05-20250423-from 阅读组.pages",
+      "stored_name": "雅思阅读提高衔接进阶讲义-V05-20250423-from 阅读组.pages",
+      "mime_type": "application/x-iwork-pages-sffpages",
+      "size_bytes": 1097928,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-03 10:12:43"
+    },
+    {
+      "id": 9,
+      "uuid": "4667901d-8ded-44a9-a017-d785c7a3cd9e",
+      "original_name": "雅思阅读提高衔接进阶讲义-V05-20250423-from 阅读组.pdf",
+      "stored_name": "雅思阅读提高衔接进阶讲义-V05-20250423-from 阅读组.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 1325458,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-03 10:12:43"
+    },
+    {
+      "id": 10,
+      "uuid": "15c9118c-e19a-4ffc-8de6-905210127e64",
+      "original_name": "雅思阅读提高讲义-V26-20251227-from 阅读组.pdf",
+      "stored_name": "雅思阅读提高讲义-V26-20251227-from 阅读组.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 2621368,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-03 10:12:43"
+    },
+    {
+      "id": 11,
+      "uuid": "585f0600-39c1-4ba5-ace7-b4549d730abb",
+      "original_name": "雅思阅读提高讲义-V26-20251227-from 阅读组pages.pages",
+      "stored_name": "雅思阅读提高讲义-V26-20251227-from 阅读组pages.pages",
+      "mime_type": "application/x-iwork-pages-sffpages",
+      "size_bytes": 2821155,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-03 10:12:43"
+    },
+    {
+      "id": 12,
+      "uuid": "238cb7ea-7948-4ec0-b154-1a518f110f72",
+      "original_name": "雅思阅读牛剑讲义-V27-20251227-from 阅读组.pages",
+      "stored_name": "雅思阅读牛剑讲义-V27-20251227-from 阅读组.pages",
+      "mime_type": "application/x-iwork-pages-sffpages",
+      "size_bytes": 1309940,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-03 10:12:43"
+    },
+    {
+      "id": 13,
+      "uuid": "c5aee87f-33e5-4461-8ad9-a872150d4c9a",
+      "original_name": "雅思阅读牛剑讲义-V27-20251227-from 阅读组.pdf",
+      "stored_name": "雅思阅读牛剑讲义-V27-20251227-from 阅读组.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 1785153,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-03 10:12:43"
+    },
+    {
+      "id": 14,
+      "uuid": "39ce0365-1881-499e-8155-7daca1061865",
+      "original_name": "雅思阅读进阶G5衔接讲义-V05-20241023-from 阅读组.pages",
+      "stored_name": "雅思阅读进阶G5衔接讲义-V05-20241023-from 阅读组.pages",
+      "mime_type": "application/x-iwork-pages-sffpages",
+      "size_bytes": 1150028,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-03 10:12:43"
+    },
+    {
+      "id": 15,
+      "uuid": "ccc7636d-0423-41cb-b5f1-5e7cfc436e67",
+      "original_name": "雅思阅读进阶G5衔接讲义-V05-20241023-from 阅读组.pdf",
+      "stored_name": "雅思阅读进阶G5衔接讲义-V05-20241023-from 阅读组.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 1607327,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-03 10:12:43"
+    },
+    {
+      "id": 16,
+      "uuid": "51281be7-e656-494c-ab7c-bd3d6e7f3df7",
+      "original_name": "雅思阅读进阶讲义-V26-20241204-from 阅读组.pages",
+      "stored_name": "雅思阅读进阶讲义-V26-20241204-from 阅读组.pages",
+      "mime_type": "application/x-iwork-pages-sffpages",
+      "size_bytes": 1304731,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-03 10:12:43"
+    },
+    {
+      "id": 17,
+      "uuid": "94952150-a2c6-4ef7-93c9-4c136fce68af",
+      "original_name": "雅思阅读进阶讲义-V26-20241204-from 阅读组.pdf",
+      "stored_name": "雅思阅读进阶讲义-V26-20241204-from 阅读组.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 1841180,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-03 10:12:43"
+    },
+    {
+      "id": 19,
+      "uuid": "0a6448f8-16cb-4011-b231-17e1a3d9de3d",
+      "original_name": "雅思阅读提高练习册-V26-20250501-from 阅读组.pdf",
+      "stored_name": "雅思阅读提高练习册-V26-20250501-from 阅读组.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 1115338,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:10:51"
+    },
+    {
+      "id": 20,
+      "uuid": "9c012682-4f2a-481a-baca-4cc075a345d6",
+      "original_name": "雅思阅读提高练习册-V26-20250507-from 阅读组.pages",
+      "stored_name": "雅思阅读提高练习册-V26-20250507-from 阅读组.pages",
+      "mime_type": "application/x-iwork-pages-sffpages",
+      "size_bytes": 1474754,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:10:51"
+    },
+    {
+      "id": 21,
+      "uuid": "0f26d643-57ff-4a31-8387-d8dbe28cded0",
+      "original_name": "雅思阅读提高衔接进阶练习册-V04-20250427-from 阅读组.pages",
+      "stored_name": "雅思阅读提高衔接进阶练习册-V04-20250427-from 阅读组.pages",
+      "mime_type": "application/x-iwork-pages-sffpages",
+      "size_bytes": 1434622,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:10:51"
+    },
+    {
+      "id": 22,
+      "uuid": "b5d67e61-a790-420a-93d5-618829abb32f",
+      "original_name": "雅思阅读提高衔接进阶练习册-V04-20250427-from 阅读组.pdf",
+      "stored_name": "雅思阅读提高衔接进阶练习册-V04-20250427-from 阅读组.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 772712,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:10:51"
+    },
+    {
+      "id": 23,
+      "uuid": "ee2af6a0-af4a-4e3c-8038-128d21647167",
+      "original_name": "雅思阅读进阶练习册-V26-20250105-from 阅读组.pages",
+      "stored_name": "雅思阅读进阶练习册-V26-20250105-from 阅读组.pages",
+      "mime_type": "application/x-iwork-pages-sffpages",
+      "size_bytes": 1494035,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:10:51"
+    },
+    {
+      "id": 24,
+      "uuid": "7194c388-8ec6-4242-bbb5-f99bff532cba",
+      "original_name": "雅思阅读进阶练习册-V26-20250105-from 阅读组.pdf",
+      "stored_name": "雅思阅读进阶练习册-V26-20250105-from 阅读组.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 1309290,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:10:51"
+    },
+    {
+      "id": 25,
+      "uuid": "f66c4c14-b092-4fbf-81db-a5b72ebb1f4e",
+      "original_name": "雅思阅读进阶衔接G5练习册-V05-20241126-from Victor&Tina.pages",
+      "stored_name": "雅思阅读进阶衔接G5练习册-V05-20241126-from Victor&Tina.pages",
+      "mime_type": "application/x-iwork-pages-sffpages",
+      "size_bytes": 2744494,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:10:51"
+    },
+    {
+      "id": 26,
+      "uuid": "d9b5e27a-42f4-4e1a-941c-82dd8d64640b",
+      "original_name": "雅思阅读进阶衔接G5练习册-V05-20241126-from Victor&Tina.pdf",
+      "stored_name": "雅思阅读进阶衔接G5练习册-V05-20241126-from Victor&Tina.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 2035023,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:10:51"
+    },
+    {
+      "id": 27,
+      "uuid": "63b19313-9cf4-4ce3-a4d0-355e5451ab15",
+      "original_name": "雅思阅读G5练习册-V25-20241220-from 阅读组.pages",
+      "stored_name": "雅思阅读G5练习册-V25-20241220-from 阅读组.pages",
+      "mime_type": "application/x-iwork-pages-sffpages",
+      "size_bytes": 1637984,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:10:51"
+    },
+    {
+      "id": 28,
+      "uuid": "5af95a7a-4161-416a-b7bf-642e09a2d227",
+      "original_name": "雅思阅读G5练习册-V25-20241220-from 阅读组.pdf",
+      "stored_name": "雅思阅读G5练习册-V25-20241220-from 阅读组.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 1791139,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:10:51"
+    },
+    {
+      "id": 29,
+      "uuid": "985e1bff-70ce-49b8-873d-4abe66f97249",
+      "original_name": "剑桥雅思4.pdf",
+      "stored_name": "剑桥雅思4.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 1226634,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:19:49"
+    },
+    {
+      "id": 30,
+      "uuid": "110f3ffe-f542-4c83-8287-40cd25b1d133",
+      "original_name": "剑桥雅思5.pdf",
+      "stored_name": "剑桥雅思5.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 47884310,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:19:49"
+    },
+    {
+      "id": 31,
+      "uuid": "26b69a12-91b6-43cf-8cee-c19131da303a",
+      "original_name": "剑桥雅思6.pdf",
+      "stored_name": "剑桥雅思6.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 55165199,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:19:49"
+    },
+    {
+      "id": 32,
+      "uuid": "647cb723-de60-4ac1-9b4e-0e6e3d46ab16",
+      "original_name": "剑桥雅思7.pdf",
+      "stored_name": "剑桥雅思7.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 59363968,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:19:49"
+    },
+    {
+      "id": 33,
+      "uuid": "c8dc906f-c99e-45aa-8bb7-c8592425a91d",
+      "original_name": "[剑桥官方] The Official Cambridge Guide to IELTS - For Academic and General Training (Pauline Cullen, Amanda French, Vanessa Jakeman) (z-lib.org).pdf",
+      "stored_name": "[剑桥官方] The Official Cambridge Guide to IELTS - For Academic and General Training (Pauline Cullen, Amanda French, Vanessa Jakeman) (z-lib.org).pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 66066557,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 01:20:37"
+    },
+    {
+      "id": 34,
+      "uuid": "9ac81a20-d73a-4611-a494-60d278288708",
+      "original_name": "剑桥雅思8.pdf",
+      "stored_name": "剑桥雅思8.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 20324730,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 02:12:41"
+    },
+    {
+      "id": 35,
+      "uuid": "74c85c93-23b0-46a1-aaf1-0a1ce95c9a6d",
+      "original_name": "剑桥雅思9.pdf",
+      "stored_name": "剑桥雅思9.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 14341573,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 02:12:41"
+    },
+    {
+      "id": 36,
+      "uuid": "6db1edfd-2b00-43b0-80a0-cc7f241659d3",
+      "original_name": "剑桥雅思10.pdf",
+      "stored_name": "剑桥雅思10.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 48217073,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 02:12:41"
+    },
+    {
+      "id": 37,
+      "uuid": "9748582f-2999-4330-a7e2-219e905aab0d",
+      "original_name": "剑桥雅思11.pdf",
+      "stored_name": "剑桥雅思11.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 10954504,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 02:12:41"
+    },
+    {
+      "id": 38,
+      "uuid": "9aba5578-83e9-4f93-a78b-fb950893588b",
+      "original_name": "剑桥雅思12.pdf",
+      "stored_name": "剑桥雅思12.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 33704409,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 02:12:41"
+    },
+    {
+      "id": 39,
+      "uuid": "3d87ae2d-0da6-41b5-a3fb-f987093a7db8",
+      "original_name": "剑桥雅思13.pdf",
+      "stored_name": "剑桥雅思13.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 13916800,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 02:12:41"
+    },
+    {
+      "id": 40,
+      "uuid": "c59f912e-26e0-443d-82c1-8139dec0339b",
+      "original_name": "剑桥雅思14.pdf",
+      "stored_name": "剑桥雅思14.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 66402356,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 02:12:41"
+    },
+    {
+      "id": 41,
+      "uuid": "24326e01-eeda-45d6-b00c-0c64d6599cb0",
+      "original_name": "剑桥雅思15.pdf",
+      "stored_name": "剑桥雅思15.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 31873237,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 02:12:41"
+    },
+    {
+      "id": 42,
+      "uuid": "7af36bd9-7751-4379-a33e-3d01528fdb4b",
+      "original_name": "剑桥雅思16.pdf",
+      "stored_name": "剑桥雅思16.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 13771681,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 02:12:41"
+    },
+    {
+      "id": 43,
+      "uuid": "b0d41d3a-6220-4f7e-80c5-53e9dabc7e8c",
+      "original_name": "剑桥雅思17.pdf",
+      "stored_name": "剑桥雅思17.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 2140900,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 02:12:41"
+    },
+    {
+      "id": 44,
+      "uuid": "11ebf4aa-6370-4ffc-bb50-5e835e63348c",
+      "original_name": "剑桥雅思18.pdf",
+      "stored_name": "剑桥雅思18.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 51962615,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 02:12:41"
+    },
+    {
+      "id": 45,
+      "uuid": "d73d23af-fb35-4782-8b22-92a1e56c754e",
+      "original_name": "剑桥雅思19.pdf",
+      "stored_name": "剑桥雅思19.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 41923034,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 02:12:41"
+    },
+    {
+      "id": 46,
+      "uuid": "f76c7584-05ad-4359-8eda-25b20f8dfc97",
+      "original_name": "剑桥雅思20.pdf",
+      "stored_name": "剑桥雅思20.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 67720012,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 02:12:41"
+    },
+    {
+      "id": 47,
+      "uuid": "5894273b-9166-4e95-a572-856f9a75597c",
+      "original_name": "[剑桥官方] 雅思考试官方指南 (英国文化协会).pdf",
+      "stored_name": "[剑桥官方] 雅思考试官方指南 (英国文化协会).pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 379339428,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 06:01:49"
+    },
+    {
+      "id": 48,
+      "uuid": "7c8d025a-0091-4f38-9b17-da0913a20659",
+      "original_name": "[剑桥官方]  Complete  IELTS  Bands 5-6.5   B2 Student's Book.pdf",
+      "stored_name": "[剑桥官方]  Complete  IELTS  Bands 5-6.5   B2 Student's Book.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 138038110,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 06:03:12"
+    },
+    {
+      "id": 49,
+      "uuid": "58467aed-ab51-4d2f-b469-67fe89d04f35",
+      "original_name": "[剑桥官方] Complete  IELTS  Bands 4-5  B1 Student's Book.pdf",
+      "stored_name": "[剑桥官方] Complete  IELTS  Bands 4-5  B1 Student's Book.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 163568931,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 06:03:12"
+    },
+    {
+      "id": 50,
+      "uuid": "fe4c0c05-f847-46bc-9aa2-a83142f2a5fc",
+      "original_name": "[剑桥官方] Complete  IELTS  Bands 6.5-7.5  C1 Student's Book.pdf",
+      "stored_name": "[剑桥官方] Complete  IELTS  Bands 6.5-7.5  C1 Student's Book.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 168963477,
+      "category": "document",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 06:03:12"
+    },
+    {
+      "id": 51,
+      "uuid": "0ec80112-a17c-4fd1-8db7-6a8a6ea8755b",
+      "original_name": "雅思阅读7阶段教材答案合集-V4.0-202560527-from Francis.numbers",
+      "stored_name": "雅思阅读7阶段教材答案合集-V4.0-202560527-from Francis.numbers",
+      "mime_type": "application/x-iwork-numbers-sffnumbers",
+      "size_bytes": 553679,
+      "category": "spreadsheet",
+      "visibility": "public",
+      "description": null,
+      "created_at": "2026-06-04 06:59:28"
+    }
+  ],
+  "bundles": [
+    {
+      "id": 2,
+      "name": "讲义及答案",
+      "description": "",
+      "visibility": "public",
+      "created_at": "2026-06-03 10:11:52",
+      "parent_id": null
+    },
+    {
+      "id": 8,
+      "name": "练习册",
+      "description": null,
+      "visibility": "public",
+      "created_at": "2026-06-04 01:09:03",
+      "parent_id": null
+    },
+    {
+      "id": 9,
+      "name": "官方教材及备课材料",
+      "description": null,
+      "visibility": "public",
+      "created_at": "2026-06-04 01:12:00",
+      "parent_id": null
+    },
+    {
+      "id": 10,
+      "name": "其他备课材料",
+      "description": null,
+      "visibility": "public",
+      "created_at": "2026-06-04 07:00:18",
+      "parent_id": null
+    },
+    {
+      "id": 11,
+      "name": "非官方练习题",
+      "description": null,
+      "visibility": "public",
+      "created_at": "2026-06-04 07:00:31",
+      "parent_id": null
+    }
+  ],
+  "bundle_files": [
+    {
+      "id": 3,
+      "bundle_id": 2,
+      "file_uuid": "5384572d-b54d-4f15-85a9-490bf71f0b49",
+      "sort_order": 0
+    },
+    {
+      "id": 4,
+      "bundle_id": 2,
+      "file_uuid": "e99ade97-f3c3-45c9-bd95-78636635c6ba",
+      "sort_order": 0
+    },
+    {
+      "id": 5,
+      "bundle_id": 2,
+      "file_uuid": "95bc946c-00e3-4a31-a796-eff2bff69e16",
+      "sort_order": 0
+    },
+    {
+      "id": 6,
+      "bundle_id": 2,
+      "file_uuid": "86277a35-23c0-433d-837e-03ecbda518df",
+      "sort_order": 0
+    },
+    {
+      "id": 7,
+      "bundle_id": 2,
+      "file_uuid": "4667901d-8ded-44a9-a017-d785c7a3cd9e",
+      "sort_order": 0
+    },
+    {
+      "id": 8,
+      "bundle_id": 2,
+      "file_uuid": "15c9118c-e19a-4ffc-8de6-905210127e64",
+      "sort_order": 0
+    },
+    {
+      "id": 9,
+      "bundle_id": 2,
+      "file_uuid": "585f0600-39c1-4ba5-ace7-b4549d730abb",
+      "sort_order": 0
+    },
+    {
+      "id": 10,
+      "bundle_id": 2,
+      "file_uuid": "238cb7ea-7948-4ec0-b154-1a518f110f72",
+      "sort_order": 0
+    },
+    {
+      "id": 11,
+      "bundle_id": 2,
+      "file_uuid": "c5aee87f-33e5-4461-8ad9-a872150d4c9a",
+      "sort_order": 0
+    },
+    {
+      "id": 12,
+      "bundle_id": 2,
+      "file_uuid": "39ce0365-1881-499e-8155-7daca1061865",
+      "sort_order": 0
+    },
+    {
+      "id": 13,
+      "bundle_id": 2,
+      "file_uuid": "ccc7636d-0423-41cb-b5f1-5e7cfc436e67",
+      "sort_order": 0
+    },
+    {
+      "id": 14,
+      "bundle_id": 2,
+      "file_uuid": "51281be7-e656-494c-ab7c-bd3d6e7f3df7",
+      "sort_order": 0
+    },
+    {
+      "id": 15,
+      "bundle_id": 2,
+      "file_uuid": "94952150-a2c6-4ef7-93c9-4c136fce68af",
+      "sort_order": 0
+    },
+    {
+      "id": 16,
+      "bundle_id": 2,
+      "file_uuid": "d1bb769a-ffed-4f99-be13-0f678b814a99",
+      "sort_order": 0
+    },
+    {
+      "id": 17,
+      "bundle_id": 8,
+      "file_uuid": "0a6448f8-16cb-4011-b231-17e1a3d9de3d",
+      "sort_order": 0
+    },
+    {
+      "id": 18,
+      "bundle_id": 8,
+      "file_uuid": "9c012682-4f2a-481a-baca-4cc075a345d6",
+      "sort_order": 0
+    },
+    {
+      "id": 19,
+      "bundle_id": 8,
+      "file_uuid": "0f26d643-57ff-4a31-8387-d8dbe28cded0",
+      "sort_order": 0
+    },
+    {
+      "id": 20,
+      "bundle_id": 8,
+      "file_uuid": "b5d67e61-a790-420a-93d5-618829abb32f",
+      "sort_order": 0
+    },
+    {
+      "id": 21,
+      "bundle_id": 8,
+      "file_uuid": "ee2af6a0-af4a-4e3c-8038-128d21647167",
+      "sort_order": 0
+    },
+    {
+      "id": 22,
+      "bundle_id": 8,
+      "file_uuid": "7194c388-8ec6-4242-bbb5-f99bff532cba",
+      "sort_order": 0
+    },
+    {
+      "id": 23,
+      "bundle_id": 8,
+      "file_uuid": "f66c4c14-b092-4fbf-81db-a5b72ebb1f4e",
+      "sort_order": 0
+    },
+    {
+      "id": 24,
+      "bundle_id": 8,
+      "file_uuid": "d9b5e27a-42f4-4e1a-941c-82dd8d64640b",
+      "sort_order": 0
+    },
+    {
+      "id": 25,
+      "bundle_id": 8,
+      "file_uuid": "63b19313-9cf4-4ce3-a4d0-355e5451ab15",
+      "sort_order": 0
+    },
+    {
+      "id": 26,
+      "bundle_id": 8,
+      "file_uuid": "5af95a7a-4161-416a-b7bf-642e09a2d227",
+      "sort_order": 0
+    },
+    {
+      "id": 27,
+      "bundle_id": 9,
+      "file_uuid": "9ac81a20-d73a-4611-a494-60d278288708",
+      "sort_order": 0
+    },
+    {
+      "id": 28,
+      "bundle_id": 9,
+      "file_uuid": "74c85c93-23b0-46a1-aaf1-0a1ce95c9a6d",
+      "sort_order": 0
+    },
+    {
+      "id": 29,
+      "bundle_id": 9,
+      "file_uuid": "6db1edfd-2b00-43b0-80a0-cc7f241659d3",
+      "sort_order": 0
+    },
+    {
+      "id": 30,
+      "bundle_id": 9,
+      "file_uuid": "9748582f-2999-4330-a7e2-219e905aab0d",
+      "sort_order": 0
+    },
+    {
+      "id": 31,
+      "bundle_id": 9,
+      "file_uuid": "9aba5578-83e9-4f93-a78b-fb950893588b",
+      "sort_order": 0
+    },
+    {
+      "id": 32,
+      "bundle_id": 9,
+      "file_uuid": "3d87ae2d-0da6-41b5-a3fb-f987093a7db8",
+      "sort_order": 0
+    },
+    {
+      "id": 33,
+      "bundle_id": 9,
+      "file_uuid": "c59f912e-26e0-443d-82c1-8139dec0339b",
+      "sort_order": 0
+    },
+    {
+      "id": 34,
+      "bundle_id": 9,
+      "file_uuid": "24326e01-eeda-45d6-b00c-0c64d6599cb0",
+      "sort_order": 0
+    },
+    {
+      "id": 35,
+      "bundle_id": 9,
+      "file_uuid": "7af36bd9-7751-4379-a33e-3d01528fdb4b",
+      "sort_order": 0
+    },
+    {
+      "id": 36,
+      "bundle_id": 9,
+      "file_uuid": "b0d41d3a-6220-4f7e-80c5-53e9dabc7e8c",
+      "sort_order": 0
+    },
+    {
+      "id": 37,
+      "bundle_id": 9,
+      "file_uuid": "11ebf4aa-6370-4ffc-bb50-5e835e63348c",
+      "sort_order": 0
+    },
+    {
+      "id": 38,
+      "bundle_id": 9,
+      "file_uuid": "d73d23af-fb35-4782-8b22-92a1e56c754e",
+      "sort_order": 0
+    },
+    {
+      "id": 39,
+      "bundle_id": 9,
+      "file_uuid": "f76c7584-05ad-4359-8eda-25b20f8dfc97",
+      "sort_order": 0
+    },
+    {
+      "id": 40,
+      "bundle_id": 9,
+      "file_uuid": "c8dc906f-c99e-45aa-8bb7-c8592425a91d",
+      "sort_order": 0
+    },
+    {
+      "id": 41,
+      "bundle_id": 9,
+      "file_uuid": "985e1bff-70ce-49b8-873d-4abe66f97249",
+      "sort_order": 0
+    },
+    {
+      "id": 42,
+      "bundle_id": 9,
+      "file_uuid": "110f3ffe-f542-4c83-8287-40cd25b1d133",
+      "sort_order": 0
+    },
+    {
+      "id": 43,
+      "bundle_id": 9,
+      "file_uuid": "26b69a12-91b6-43cf-8cee-c19131da303a",
+      "sort_order": 0
+    },
+    {
+      "id": 44,
+      "bundle_id": 9,
+      "file_uuid": "647cb723-de60-4ac1-9b4e-0e6e3d46ab16",
+      "sort_order": 0
+    },
+    {
+      "id": 45,
+      "bundle_id": 9,
+      "file_uuid": "7c8d025a-0091-4f38-9b17-da0913a20659",
+      "sort_order": 0
+    },
+    {
+      "id": 46,
+      "bundle_id": 9,
+      "file_uuid": "58467aed-ab51-4d2f-b469-67fe89d04f35",
+      "sort_order": 0
+    },
+    {
+      "id": 47,
+      "bundle_id": 9,
+      "file_uuid": "fe4c0c05-f847-46bc-9aa2-a83142f2a5fc",
+      "sort_order": 0
+    },
+    {
+      "id": 48,
+      "bundle_id": 9,
+      "file_uuid": "5894273b-9166-4e95-a572-856f9a75597c",
+      "sort_order": 0
+    },
+    {
+      "id": 49,
+      "bundle_id": 2,
+      "file_uuid": "0ec80112-a17c-4fd1-8db7-6a8a6ea8755b",
+      "sort_order": 0
+    }
+  ],
+  "key_file_permissions": [
+    {
+      "id": 3,
+      "key_id": 5,
+      "file_uuid": "238cb7ea-7948-4ec0-b154-1a518f110f72",
+      "permission": "preview"
+    },
+    {
+      "id": 4,
+      "key_id": 5,
+      "file_uuid": "c5aee87f-33e5-4461-8ad9-a872150d4c9a",
+      "permission": "preview"
+    },
+    {
+      "id": 5,
+      "key_id": 5,
+      "file_uuid": "5384572d-b54d-4f15-85a9-490bf71f0b49",
+      "permission": "preview"
+    },
+    {
+      "id": 6,
+      "key_id": 5,
+      "file_uuid": "d1bb769a-ffed-4f99-be13-0f678b814a99",
+      "permission": "preview"
+    },
+    {
+      "id": 7,
+      "key_id": 8,
+      "file_uuid": "238cb7ea-7948-4ec0-b154-1a518f110f72",
+      "permission": "preview"
+    },
+    {
+      "id": 8,
+      "key_id": 8,
+      "file_uuid": "c5aee87f-33e5-4461-8ad9-a872150d4c9a",
+      "permission": "preview"
+    },
+    {
+      "id": 9,
+      "key_id": 8,
+      "file_uuid": "63b19313-9cf4-4ce3-a4d0-355e5451ab15",
+      "permission": "preview"
+    },
+    {
+      "id": 10,
+      "key_id": 8,
+      "file_uuid": "5af95a7a-4161-416a-b7bf-642e09a2d227",
+      "permission": "preview"
+    },
+    {
+      "id": 11,
+      "key_id": 8,
+      "file_uuid": "5384572d-b54d-4f15-85a9-490bf71f0b49",
+      "permission": "preview"
+    },
+    {
+      "id": 12,
+      "key_id": 8,
+      "file_uuid": "d1bb769a-ffed-4f99-be13-0f678b814a99",
+      "permission": "preview"
+    },
+    {
+      "id": 13,
+      "key_id": 9,
+      "file_uuid": "238cb7ea-7948-4ec0-b154-1a518f110f72",
+      "permission": "preview"
+    },
+    {
+      "id": 14,
+      "key_id": 9,
+      "file_uuid": "c5aee87f-33e5-4461-8ad9-a872150d4c9a",
+      "permission": "preview"
+    },
+    {
+      "id": 15,
+      "key_id": 9,
+      "file_uuid": "f66c4c14-b092-4fbf-81db-a5b72ebb1f4e",
+      "permission": "preview"
+    },
+    {
+      "id": 16,
+      "key_id": 9,
+      "file_uuid": "d9b5e27a-42f4-4e1a-941c-82dd8d64640b",
+      "permission": "preview"
+    },
+    {
+      "id": 17,
+      "key_id": 9,
+      "file_uuid": "63b19313-9cf4-4ce3-a4d0-355e5451ab15",
+      "permission": "preview"
+    },
+    {
+      "id": 18,
+      "key_id": 9,
+      "file_uuid": "5af95a7a-4161-416a-b7bf-642e09a2d227",
+      "permission": "preview"
+    },
+    {
+      "id": 19,
+      "key_id": 9,
+      "file_uuid": "5384572d-b54d-4f15-85a9-490bf71f0b49",
+      "permission": "preview"
+    },
+    {
+      "id": 20,
+      "key_id": 9,
+      "file_uuid": "39ce0365-1881-499e-8155-7daca1061865",
+      "permission": "preview"
+    },
+    {
+      "id": 21,
+      "key_id": 9,
+      "file_uuid": "ccc7636d-0423-41cb-b5f1-5e7cfc436e67",
+      "permission": "preview"
+    },
+    {
+      "id": 22,
+      "key_id": 9,
+      "file_uuid": "d1bb769a-ffed-4f99-be13-0f678b814a99",
+      "permission": "preview"
+    },
+    {
+      "id": 23,
+      "key_id": 10,
+      "file_uuid": "f66c4c14-b092-4fbf-81db-a5b72ebb1f4e",
+      "permission": "preview"
+    },
+    {
+      "id": 24,
+      "key_id": 10,
+      "file_uuid": "d9b5e27a-42f4-4e1a-941c-82dd8d64640b",
+      "permission": "preview"
+    },
+    {
+      "id": 25,
+      "key_id": 10,
+      "file_uuid": "63b19313-9cf4-4ce3-a4d0-355e5451ab15",
+      "permission": "preview"
+    },
+    {
+      "id": 26,
+      "key_id": 10,
+      "file_uuid": "5af95a7a-4161-416a-b7bf-642e09a2d227",
+      "permission": "preview"
+    },
+    {
+      "id": 27,
+      "key_id": 10,
+      "file_uuid": "5384572d-b54d-4f15-85a9-490bf71f0b49",
+      "permission": "preview"
+    },
+    {
+      "id": 28,
+      "key_id": 10,
+      "file_uuid": "39ce0365-1881-499e-8155-7daca1061865",
+      "permission": "preview"
+    },
+    {
+      "id": 29,
+      "key_id": 10,
+      "file_uuid": "ccc7636d-0423-41cb-b5f1-5e7cfc436e67",
+      "permission": "preview"
+    },
+    {
+      "id": 30,
+      "key_id": 10,
+      "file_uuid": "d1bb769a-ffed-4f99-be13-0f678b814a99",
+      "permission": "preview"
+    },
+    {
+      "id": 31,
+      "key_id": 10,
+      "file_uuid": "238cb7ea-7948-4ec0-b154-1a518f110f72",
+      "permission": "preview"
+    },
+    {
+      "id": 32,
+      "key_id": 10,
+      "file_uuid": "c5aee87f-33e5-4461-8ad9-a872150d4c9a",
+      "permission": "preview"
+    },
+    {
+      "id": 33,
+      "key_id": 11,
+      "file_uuid": "0ec80112-a17c-4fd1-8db7-6a8a6ea8755b",
+      "permission": "preview"
+    }
+  ]
+}
