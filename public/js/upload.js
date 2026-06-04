@@ -107,6 +107,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (i !== index) newDt.items.add(files[i]);
     }
     selectedFiles = newDt;
+    failedIndices = null; // reset retry state when files are removed
+    resetUploadState();
     renderFileList();
   }
 
