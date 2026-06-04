@@ -37,6 +37,17 @@ class Bundle {
     });
   }
 
+  // Flat list of ALL bundles (for permission management UI)
+  static findAllFlat() {
+    const bundles = db.prepare(
+      'SELECT * FROM bundles ORDER BY created_at DESC'
+    ).all();
+    return bundles.map(b => {
+      b.files = this.getBundleFiles(b.id);
+      return b;
+    });
+  }
+
   static findAllPublic() {
     const bundles = db.prepare(
       "SELECT * FROM bundles WHERE parent_id IS NULL AND visibility IN ('public', 'download_only') ORDER BY created_at DESC"

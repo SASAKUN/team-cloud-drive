@@ -242,10 +242,29 @@
     </div>
   </div>
 
+  <!-- Bundle Permission Modal -->
+  <div class="file-picker-overlay" id="bundlePermOverlay" onclick="closeBundlePermModal(event)">
+    <div class="file-picker-modal" onclick="event.stopPropagation()" style="max-width:640px;">
+      <div class="file-picker-header">
+        <h3 id="bundlePermTitle">文件包访问权限</h3>
+        <button class="file-picker-close" onclick="closeBundlePermModal()">&times;</button>
+      </div>
+      <div class="file-picker-body" id="bundlePermBody" style="max-height:55vh;">
+        <div class="file-picker-empty">加载中…</div>
+      </div>
+      <div class="file-picker-footer">
+        <span class="file-picker-count" style="font-size:12px;color:var(--apple-text-tertiary);">优先级: 文件权限 > 文件包权限 > 全局权限</span>
+        <div class="file-picker-actions">
+          <button class="btn-cancel" onclick="closeBundlePermModal()">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
   const BUNDLE_FILE_PAGE_SIZE = 10;
   let bundleData = <%- JSON.stringify(typeof bundles !== 'undefined' ? bundles : []) %>;
-  let allFilesData = <%- JSON.stringify(typeof files !== 'undefined' ? files : []) %>;
+  let allFilesFlat = <%- JSON.stringify(typeof files !== 'undefined' ? files : []) %>;
   let currentPickerBundleId = null;
   let pickerSelectedUuids = new Set();
 
@@ -304,6 +323,7 @@
       // Action buttons (outside the toggle area)
       html += `<div style="display:flex;gap:6px;" onclick="event.stopPropagation()">`;
       html += `<button class="btn btn-sm btn-secondary" onclick="addFileToBundle(${b.id})">添加文件</button>`;
+      html += `<button class="btn btn-sm btn-secondary" onclick="openBundlePermModal(${b.id}, '${b.name.replace(/'/g, "\\'")}')">访问权限</button>`;
       html += `<button class="btn btn-sm btn-secondary" onclick="editBundle(${b.id}, '${b.name.replace(/'/g, "\\'")}', '${(b.description||'').replace(/'/g, "\\'")}', '${b.visibility}', ${b.parent_id || 'null'})">编辑</button>`;
       html += `<button class="btn btn-sm btn-danger" onclick="deleteBundle(${b.id})">删除</button>`;
       html += `</div>`;
@@ -337,16 +357,67 @@
         html += `</div>`;
       }
 
-      // Children (sub-bundles) — always shown if present
+      // Children (sub-bundles) — render as nested collapsible cards
       if (b.children && b.children.length > 0) {
-        html += `<div style="padding:0 16px 12px;">`;
+        html += `<div class="sub-bundle-list" style="margin:8px 16px 12px;display:flex;flex-direction:column;gap:6px;">`;
         b.children.forEach(child => {
           const childVis = child.visibility === 'public' ? '公开' : child.visibility === 'download_only' ? '仅查看' : '隐藏';
-          html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;margin:4px 0;background:var(--apple-grey);border-radius:8px;font-size:12px;">`;
-          html += `<span style="color:var(--apple-blue);">↳</span>`;
-          html += `<strong>${child.name}</strong>`;
-          html += `<span style="color:var(--apple-text-secondary);font-size:11px;">${childVis} · ${child.files ? child.files.length : 0} 个文件</span>`;
+          const childVisClass = child.visibility === 'public' ? 'vis-public' : child.visibility === 'download_only' ? 'vis-download_only' : 'vis-hidden';
+          const childFileCount = child.files ? child.files.length : 0;
+
+          html += `<div class="bundle-card sub-bundle collapsed" id="bundle-card-${child.id}" style="background:var(--apple-grey);border-radius:10px;overflow:hidden;margin:4px 0;">`;
+
+          // Sub-bundle header (toggleable)
+          html += `<div class="bundle-card-header" onclick="toggleBundleCard(${child.id})" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;">`;
+          html += `<span class="bundle-chevron" style="font-size:10px;transition:transform 0.2s;">▶</span>`;
+          html += `<span style="color:var(--apple-blue);font-size:14px;">↳</span>`;
+          html += `<strong style="font-size:13px;">${child.name}</strong>`;
+          html += `<span class="vis-select ${childVisClass}" style="font-size:10px;cursor:default;">${childVis}</span>`;
+          html += `<span style="font-size:11px;color:var(--apple-text-secondary);">${childFileCount} 个文件</span>`;
+
+          // Action buttons for sub-bundle
+          html += `<div style="display:flex;gap:4px;margin-left:auto;" onclick="event.stopPropagation()">`;
+          html += `<button class="btn btn-sm btn-secondary" onclick="addFileToBundle(${child.id})" style="font-size:11px;padding:3px 8px;">添加文件</button>`;
+          html += `<button class="btn btn-sm btn-secondary" onclick="openBundlePermModal(${child.id}, '${child.name.replace(/'/g, "\\'")}')" style="font-size:11px;padding:3px 8px;">访问权限</button>`;
+          html += `<button class="btn btn-sm btn-secondary" onclick="editBundle(${child.id}, '${child.name.replace(/'/g, "\\'")}', '${(child.description||'').replace(/'/g, "\\'")}', '${child.visibility}', ${child.parent_id || 'null'})" style="font-size:11px;padding:3px 8px;">编辑</button>`;
+          html += `<button class="btn btn-sm btn-danger" onclick="deleteBundle(${child.id})" style="font-size:11px;padding:3px 8px;">删除</button>`;
           html += `</div>`;
+
+          html += `</div>`; // end sub-bundle header
+
+          // Sub-bundle collapsible body
+          html += `<div class="bundle-body" id="bundle-body-${child.id}" style="display:none;padding:0 14px 10px;">`;
+
+          if (child.description) {
+            html += `<p style="font-size:12px;color:var(--apple-text-secondary);padding:4px 0 8px;">${child.description}</p>`;
+          }
+
+          // File search for sub-bundle
+          if (childFileCount > 0) {
+            html += `<div class="bundle-file-search" style="margin-bottom:6px;">`;
+            html += `<input type="text" class="bundle-search-input" placeholder="搜索文件…" oninput="searchBundleFiles(${child.id}, this.value)" onclick="event.stopPropagation()" style="width:100%;padding:6px 10px;font-size:12px;border:1px solid var(--apple-border);border-radius:6px;background:#fff;">`;
+            html += `</div>`;
+          }
+
+          // Files container for sub-bundle
+          html += `<div class="bundle-files-wrapper" id="bundle-files-${child.id}" data-bundle-id="${child.id}" data-files='${JSON.stringify(child.files || []).replace(/'/g, "&#39;")}'>`;
+          html += `</div>`;
+
+          // Pagination for sub-bundle files
+          if (childFileCount > BUNDLE_FILE_PAGE_SIZE) {
+            html += `<div class="bundle-file-pagination" id="bundle-pagination-${child.id}" style="display:none;justify-content:center;gap:8px;padding:6px 0;">`;
+            html += `<button class="page-btn prev" onclick="event.stopPropagation();changeBundleFilePage(${child.id}, -1)" style="font-size:11px;padding:2px 8px;">‹ 上一页</button>`;
+            html += `<span class="page-info" id="bundle-page-info-${child.id}" style="font-size:11px;">1 / ${Math.ceil(childFileCount / BUNDLE_FILE_PAGE_SIZE)}</span>`;
+            html += `<button class="page-btn next" onclick="event.stopPropagation();changeBundleFilePage(${child.id}, 1)" style="font-size:11px;padding:2px 8px;">下一页 ›</button>`;
+            html += `</div>`;
+          }
+
+          if (childFileCount === 0) {
+            html += `<p style="font-size:12px;color:var(--apple-text-tertiary);padding:4px 0;">文件包为空，点击上方「添加文件」加入文件</p>`;
+          }
+
+          html += `</div>`; // end sub-bundle body
+          html += `</div>`; // end sub-bundle card
         });
         html += `</div>`;
       }
@@ -520,7 +591,7 @@
     const existingUuids = new Set((bundle && bundle.files) ? bundle.files.map(f => f.uuid) : []);
 
     // Filter out already-added files
-    const availableFiles = allFilesData.filter(f => !existingUuids.has(f.uuid));
+    const availableFiles = allFilesFlat.filter(f => !existingUuids.has(f.uuid));
 
     renderPickerList(availableFiles);
     updatePickerCount();
@@ -564,7 +635,7 @@
     const bundle = bundleData.find(b => b.id === currentPickerBundleId);
     const existingUuids = new Set((bundle && bundle.files) ? bundle.files.map(f => f.uuid) : []);
 
-    const filtered = allFilesData.filter(f => {
+    const filtered = allFilesFlat.filter(f => {
       if (existingUuids.has(f.uuid)) return false;
       if (!q) return true;
       return (f.original_name || '').toLowerCase().includes(q);
@@ -639,9 +710,122 @@
     }
   }
 
+  // ============ Bundle Permission Modal ============
+
+  let currentPermBundleId = null;
+  let currentPermBundleKeys = [];
+
+  async function openBundlePermModal(bundleId, bundleName) {
+    currentPermBundleId = bundleId;
+    document.getElementById('bundlePermTitle').textContent = '访问权限 · ' + bundleName;
+    document.getElementById('bundlePermBody').innerHTML = '<div class="file-picker-empty">加载中…</div>';
+
+    const overlay = document.getElementById('bundlePermOverlay');
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    try {
+      const resp = await fetch(`/admin/bundles/${bundleId}/permissions`);
+      const data = await resp.json();
+      currentPermBundleKeys = data.keys || [];
+      renderBundlePermModal(data.keys);
+    } catch (err) {
+      document.getElementById('bundlePermBody').innerHTML = '<div class="file-picker-empty">加载失败: ' + err.message + '</div>';
+    }
+  }
+
+  function closeBundlePermModal(event) {
+    if (event && event.target !== event.currentTarget) return;
+    const overlay = document.getElementById('bundlePermOverlay');
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+    currentPermBundleId = null;
+    currentPermBundleKeys = [];
+  }
+
+  function renderBundlePermModal(keys) {
+    const body = document.getElementById('bundlePermBody');
+    if (!keys || keys.length === 0) {
+      body.innerHTML = '<div class="file-picker-empty">暂无密钥</div>';
+      return;
+    }
+
+    const permLabels = { preview: '仅预览', download: '仅下载', both: '预览+下载', none: '无权限' };
+    const permClasses = { preview: 'perm-badge-preview', download: 'perm-badge-download', both: 'perm-badge-both', none: '' };
+    const permNoneStyle = 'background:#ffebee;color:#c62828;';
+
+    let html = '<div class="file-table-wrapper"><table class="perm-file-table"><thead><tr>';
+    html += '<th class="col-name">密钥</th>';
+    html += '<th style="width:90px;text-align:center;">全局权限</th>';
+    html += '<th style="width:160px;text-align:center;">文件包覆盖</th>';
+    html += '</tr></thead><tbody>';
+
+    keys.forEach(k => {
+      const isRevoked = k.status === 'revoked';
+      const globalText = k.globalPermission === 'both' ? '预览+下载' : k.globalPermission === 'download' ? '仅下载' : '仅预览';
+      const globalClass = k.globalPermission === 'both' ? 'perm-badge-both' : k.globalPermission === 'download' ? 'perm-badge-download' : 'perm-badge-preview';
+      const displayName = k.label ? `${k.label} (${k.key})` : k.key;
+      const currentOverride = k.bundlePermission; // null | 'preview' | 'download' | 'both' | 'none'
+      const rowStyle = isRevoked ? 'opacity:0.5;' : '';
+
+      html += `<tr style="${rowStyle}">`;
+      html += `<td class="col-name"><code style="font-size:12px;">${displayName}</code>${isRevoked ? ' <span style="color:var(--apple-red);font-size:10px;">已撤销</span>' : ''}</td>`;
+      html += `<td style="text-align:center;"><span class="perm-badge ${globalClass}" style="font-size:11px;">${globalText}</span></td>`;
+      html += `<td style="text-align:center;">`;
+      html += `<select onchange="setBundleKeyPermission(${k.id}, this.value)" style="font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--apple-border);" ${isRevoked ? 'disabled' : ''}>`;
+      html += `<option value="inherit" ${currentOverride === null ? 'selected' : ''}>继承全局 (${globalText})</option>`;
+      html += `<option value="preview" ${currentOverride === 'preview' ? 'selected' : ''}>仅预览</option>`;
+      html += `<option value="download" ${currentOverride === 'download' ? 'selected' : ''}>仅下载</option>`;
+      html += `<option value="both" ${currentOverride === 'both' ? 'selected' : ''}>预览+下载</option>`;
+      html += `<option value="none" ${currentOverride === 'none' ? 'selected' : ''}>🚫 无权限</option>`;
+      html += `</select>`;
+      // Feedback indicator
+      html += `<span id="bundlePermFeedback-${k.id}" style="display:none;margin-left:6px;font-size:11px;"></span>`;
+      html += `</td>`;
+      html += `</tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    body.innerHTML = html;
+  }
+
+  async function setBundleKeyPermission(keyId, permission) {
+    if (!currentPermBundleId) return;
+
+    const feedback = document.getElementById('bundlePermFeedback-' + keyId);
+    if (feedback) { feedback.style.display = 'inline'; feedback.textContent = '保存中…'; feedback.style.color = 'var(--apple-blue)'; }
+
+    try {
+      const resp = await fetch(`/admin/bundles/${currentPermBundleId}/permission`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key_id: keyId, permission })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        if (feedback) { feedback.textContent = '✓'; feedback.style.color = 'var(--apple-green)'; }
+        setTimeout(() => { if (feedback) feedback.style.display = 'none'; }, 1500);
+      } else {
+        if (feedback) { feedback.textContent = '失败'; feedback.style.color = 'var(--apple-red)'; }
+      }
+    } catch (err) {
+      if (feedback) { feedback.textContent = '失败'; feedback.style.color = 'var(--apple-red)'; }
+    }
+  }
+
   // ============ Init ============
-  populateParentSelect(bundleData);
-  renderBundleList(bundleData);
+  // Flatten all bundles (including children) into bundleData for lookup
+  (function flattenBundles(list) {
+    (list || []).forEach(b => {
+      bundleData.push(b);
+      if (b.children && b.children.length > 0) {
+        flattenBundles(b.children);
+      }
+    });
+  })(<%- JSON.stringify(typeof bundles !== 'undefined' ? bundles : []) %>);
+
+  populateParentSelect(<%- JSON.stringify(typeof bundles !== 'undefined' ? bundles : []) %>);
+  renderBundleList(<%- JSON.stringify(typeof bundles !== 'undefined' ? bundles : []) %>);
   </script>
 </body>
 </html>

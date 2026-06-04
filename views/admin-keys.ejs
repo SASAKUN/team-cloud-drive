@@ -211,6 +211,43 @@
           <button class="btn btn-primary" id="saveKeyFilePermsBtn" onclick="saveKeyFilePermissions()" disabled>保存全部权限设置</button>
         </div>
       </div>
+
+      <!-- Key-Bundle Permission Management -->
+      <div class="admin-section" id="key-bundle-perms-section">
+        <h2>密钥文件包权限管理</h2>
+        <p style="font-size:13px;color:var(--apple-text-secondary);margin-bottom:16px;">
+          针对每个密钥，可单独设置其对每个文件包的访问权限。优先级：文件权限 > 文件包权限 > 全局权限。设为「无权限」则该密钥完全无法访问此文件包。
+        </p>
+
+        <div class="key-selector-row">
+          <label for="keyBundleSelect">选择密钥：</label>
+          <select id="keyBundleSelect" onchange="loadKeyBundlePermissions()">
+            <option value="">— 请选择 —</option>
+          </select>
+        </div>
+
+        <!-- Batch action bar -->
+        <div class="batch-perm-bar" id="bundleBatchPermBar" style="display:none;">
+          <span class="batch-perm-label">选中文件包设为：</span>
+          <div class="perm-radio-group" id="bundlePermRadioGroup">
+            <button class="perm-radio-btn" data-perm="inherit" onclick="selectBundleBatchPerm('inherit')">继承全局</button>
+            <button class="perm-radio-btn" data-perm="preview" onclick="selectBundleBatchPerm('preview')">仅预览</button>
+            <button class="perm-radio-btn" data-perm="download" onclick="selectBundleBatchPerm('download')">仅下载</button>
+            <button class="perm-radio-btn" data-perm="both" onclick="selectBundleBatchPerm('both')">预览+下载</button>
+            <button class="perm-radio-btn" data-perm="none" onclick="selectBundleBatchPerm('none')">无权限</button>
+          </div>
+          <span class="batch-check-count" id="bundleBatchCheckCount">已选 0 个文件包</span>
+          <button class="btn btn-sm btn-primary" id="applyBundleBatchBtn" onclick="applyBundleBatchPerm()" disabled>应用</button>
+        </div>
+
+        <div id="keyBundlePermsContainer">
+          <p class="empty-hint" id="keyBundlePermsEmpty">请先选择一个密钥</p>
+        </div>
+
+        <div style="margin-top:16px;text-align:right;display:none;" id="bundleSaveBar">
+          <button class="btn btn-primary" id="saveKeyBundlePermsBtn" onclick="saveKeyBundlePermissions()" disabled>保存全部权限设置</button>
+        </div>
+      </div>
     </div>
   </main>
 
@@ -393,6 +430,7 @@
       const permText = k.permission === 'both' ? '预览+下载' : k.permission === 'download' ? '仅下载' : '仅预览';
       select.innerHTML += `<option value="${k.id}">${label} [全局: ${permText}]</option>`;
     });
+    loadKeyBundleSelect(); // also populate bundle selector
   }
 
   async function loadKeyFilePermissions() {
@@ -586,6 +624,202 @@
 
   // Init
   loadKeys();
+
+  // ============ Key-Bundle Permission Management ============
+
+  let selectedBundleKeyId = null;
+  let selectedBundleKey = null;
+  let bundlePerms = {}; // Current per-bundle overrides: { bundle_id: 'preview'|'download'|'both'|'none'|null }
+  let keyBundlePermChanges = {}; // Pending changes
+  let selectedBundleBatchPerm = null;
+
+  function loadKeyBundleSelect() {
+    const select = document.getElementById('keyBundleSelect');
+    select.innerHTML = '<option value="">— 请选择 —</option>';
+    keys.forEach(k => {
+      const label = k.label ? `${k.label} (${k.key})` : k.key;
+      const permText = k.permission === 'both' ? '预览+下载' : k.permission === 'download' ? '仅下载' : '仅预览';
+      select.innerHTML += `<option value="${k.id}">${label} [全局: ${permText}]</option>`;
+    });
+  }
+
+  async function loadKeyBundlePermissions() {
+    const select = document.getElementById('keyBundleSelect');
+    const keyId = select.value;
+    if (!keyId) {
+      document.getElementById('keyBundlePermsContainer').innerHTML = '<p class="empty-hint">请先选择一个密钥</p>';
+      document.getElementById('bundleBatchPermBar').style.display = 'none';
+      document.getElementById('bundleSaveBar').style.display = 'none';
+      document.getElementById('saveKeyBundlePermsBtn').disabled = true;
+      selectedBundleKeyId = null;
+      selectedBundleKey = null;
+      keyBundlePermChanges = {};
+      bundlePerms = {};
+      selectedBundleBatchPerm = null;
+      return;
+    }
+
+    selectedBundleKeyId = keyId;
+    keyBundlePermChanges = {};
+    selectedBundleBatchPerm = null;
+
+    try {
+      const resp = await fetch(`/admin/keys/${keyId}/bundles`);
+      const data = await resp.json();
+      selectedBundleKey = data.key;
+      bundlePerms = {};
+
+      data.bundles.forEach(b => {
+        bundlePerms[b.id] = b.keyPermission; // null | 'preview' | 'download' | 'both' | 'none'
+      });
+
+      if (data.bundles.length === 0) {
+        document.getElementById('keyBundlePermsContainer').innerHTML = '<p class="empty-hint">暂无文件包</p>';
+        document.getElementById('bundleBatchPermBar').style.display = 'none';
+        document.getElementById('bundleSaveBar').style.display = 'none';
+        document.getElementById('saveKeyBundlePermsBtn').disabled = true;
+        return;
+      }
+
+      // Build bundle table
+      let html = '<div class="file-table-wrapper"><table class="perm-file-table"><thead><tr>';
+      html += '<th class="col-check"><input type="checkbox" id="bundlePermCheckAll" onchange="handleBundlePermCheckAll(this)"></th>';
+      html += '<th class="col-name">文件包</th>';
+      html += '<th class="col-status">当前覆盖权限</th>';
+      html += '</tr></thead><tbody>';
+
+      data.bundles.forEach(b => {
+        const current = b.keyPermission;
+        let badgeHtml;
+        if (current === 'both') {
+          badgeHtml = '<span class="perm-badge perm-badge-both">预览+下载</span>';
+        } else if (current === 'download') {
+          badgeHtml = '<span class="perm-badge perm-badge-download">仅下载</span>';
+        } else if (current === 'preview') {
+          badgeHtml = '<span class="perm-badge perm-badge-preview">仅预览</span>';
+        } else if (current === 'none') {
+          badgeHtml = '<span class="perm-badge" style="background:#ffebee;color:#c62828;">无权限</span>';
+        } else {
+          const globalText = selectedBundleKey.permission === 'both' ? '预览+下载' : selectedBundleKey.permission === 'download' ? '仅下载' : '仅预览';
+          badgeHtml = `<span class="perm-badge perm-badge-default">默认 · 沿用全局(${globalText})</span>`;
+        }
+
+        const parentTag = b.parent_id ? ' <span style="font-size:10px;color:var(--apple-blue);">(子包)</span>' : '';
+
+        html += `<tr class="perm-bundle-row" data-bundle-id="${b.id}">`;
+        html += `<td class="col-check"><input type="checkbox" class="bundle-perm-checkbox" value="${b.id}" onchange="onBundlePermCheckChange()"></td>`;
+        html += `<td class="col-name">${b.name}${parentTag} <span style="font-size:11px;color:var(--apple-text-tertiary);">· ${b.fileCount} 文件</span></td>`;
+        html += `<td class="col-status" id="bundlePermStatus-${b.id}">${badgeHtml}</td>`;
+        html += `</tr>`;
+      });
+
+      html += '</tbody></table></div>';
+      document.getElementById('keyBundlePermsContainer').innerHTML = html;
+      document.getElementById('bundleBatchPermBar').style.display = 'flex';
+      document.getElementById('bundleSaveBar').style.display = 'block';
+      document.getElementById('saveKeyBundlePermsBtn').disabled = true;
+      document.getElementById('bundleBatchCheckCount').textContent = '已选 0 个文件包';
+      updateBundleRadioButtons();
+    } catch (err) {
+      console.error('Failed to load key bundle permissions:', err);
+    }
+  }
+
+  function handleBundlePermCheckAll(el) {
+    document.querySelectorAll('.bundle-perm-checkbox').forEach(cb => { cb.checked = el.checked; });
+    onBundlePermCheckChange();
+  }
+
+  function onBundlePermCheckChange() {
+    const checked = getCheckedBundleIds();
+    document.getElementById('bundleBatchCheckCount').textContent = `已选 ${checked.length} 个文件包`;
+    updateBundleRadioButtons();
+    document.getElementById('applyBundleBatchBtn').disabled = checked.length === 0 || selectedBundleBatchPerm === null;
+  }
+
+  function getCheckedBundleIds() {
+    return Array.from(document.querySelectorAll('.bundle-perm-checkbox:checked')).map(cb => cb.value);
+  }
+
+  function selectBundleBatchPerm(perm) {
+    selectedBundleBatchPerm = perm;
+    updateBundleRadioButtons();
+    document.getElementById('applyBundleBatchBtn').disabled = getCheckedBundleIds().length === 0 || selectedBundleBatchPerm === null;
+  }
+
+  function updateBundleRadioButtons() {
+    document.querySelectorAll('#bundlePermRadioGroup .perm-radio-btn').forEach(btn => {
+      btn.classList.toggle('selected', btn.dataset.perm === selectedBundleBatchPerm);
+    });
+  }
+
+  function applyBundleBatchPerm() {
+    if (!selectedBundleKeyId || selectedBundleBatchPerm === null) return;
+
+    const checked = getCheckedBundleIds();
+    if (checked.length === 0) return;
+
+    checked.forEach(bundleId => {
+      if (selectedBundleBatchPerm === 'inherit') {
+        delete keyBundlePermChanges[bundleId];
+        const cell = document.getElementById('bundlePermStatus-' + bundleId);
+        if (cell && selectedBundleKey) {
+          const globalText = selectedBundleKey.permission === 'both' ? '预览+下载' : selectedBundleKey.permission === 'download' ? '仅下载' : '仅预览';
+          cell.innerHTML = '<span class="perm-badge perm-badge-default">默认 · 沿用全局(' + globalText + ')</span>';
+        }
+      } else {
+        keyBundlePermChanges[bundleId] = selectedBundleBatchPerm;
+        const cell = document.getElementById('bundlePermStatus-' + bundleId);
+        if (cell) {
+          const labels = {
+            preview: ['perm-badge-preview', '仅预览'],
+            download: ['perm-badge-download', '仅下载'],
+            both: ['perm-badge-both', '预览+下载'],
+            none: ['', '无权限', 'background:#ffebee;color:#c62828;']
+          };
+          const [cls, text, extraStyle] = labels[selectedBundleBatchPerm];
+          cell.innerHTML = `<span class="perm-badge ${cls}" style="${extraStyle || ''}">${text} <small style="opacity:0.6;">(待保存)</small></span>`;
+        }
+      }
+    });
+
+    // Uncheck all
+    document.querySelectorAll('.bundle-perm-checkbox:checked').forEach(cb => { cb.checked = false; });
+    document.getElementById('bundlePermCheckAll').checked = false;
+    document.getElementById('bundleBatchCheckCount').textContent = '已选 0 个文件包';
+    selectedBundleBatchPerm = null;
+    updateBundleRadioButtons();
+    document.getElementById('applyBundleBatchBtn').disabled = true;
+
+    document.getElementById('saveKeyBundlePermsBtn').disabled = Object.keys(keyBundlePermChanges).length === 0;
+  }
+
+  async function saveKeyBundlePermissions() {
+    if (!selectedBundleKeyId || Object.keys(keyBundlePermChanges).length === 0) return;
+
+    const permissions = Object.entries(keyBundlePermChanges).map(([bundle_id, permission]) => ({
+      bundle_id: parseInt(bundle_id),
+      permission
+    }));
+
+    try {
+      const resp = await fetch(`/admin/keys/${selectedBundleKeyId}/bundle-permissions/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        keyBundlePermChanges = {};
+        document.getElementById('saveKeyBundlePermsBtn').disabled = true;
+        await loadKeyBundlePermissions();
+      } else {
+        alert('保存失败: ' + data.error);
+      }
+    } catch (err) {
+      alert('保存失败: ' + err.message);
+    }
+  }
   </script>
 </body>
 </html>

@@ -24,7 +24,8 @@ const data = {
   files: db.prepare('SELECT * FROM files').all(),
   bundles: db.prepare('SELECT * FROM bundles').all(),
   bundle_files: db.prepare('SELECT * FROM bundle_files').all(),
-  key_file_permissions: db.prepare('SELECT * FROM key_file_permissions').all()
+  key_file_permissions: db.prepare('SELECT * FROM key_file_permissions').all(),
+  bundle_key_permissions: db.prepare('SELECT * FROM bundle_key_permissions').all()
 };
 
 process.stdout.write(JSON.stringify(data, null, 2));

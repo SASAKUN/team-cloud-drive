@@ -58,6 +58,14 @@ db.exec(`
     permission TEXT NOT NULL DEFAULT 'preview' CHECK(permission IN ('preview', 'download')),
     UNIQUE(key_id, file_uuid)
   );
+
+  CREATE TABLE IF NOT EXISTS bundle_key_permissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key_id INTEGER NOT NULL REFERENCES access_keys(id) ON DELETE CASCADE,
+    bundle_id INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
+    permission TEXT NOT NULL DEFAULT 'preview' CHECK(permission IN ('preview', 'download', 'both')),
+    UNIQUE(key_id, bundle_id)
+  );
 `);
 
 // Migration: add status column if upgrading from old schema
@@ -116,6 +124,29 @@ if (needsMigration) {
       ALTER TABLE key_file_permissions_new RENAME TO key_file_permissions;
     `);
 
+    db.pragma('foreign_keys = ON');
+  })();
+}
+
+// Migration: add 'none' to bundle_key_permissions CHECK constraint
+const bkpSql = db.prepare("SELECT sql FROM sqlite_master WHERE name = 'bundle_key_permissions' AND type = 'table'").get();
+const needsBkpMigration = bkpSql && !bkpSql.sql.includes("'none'");
+
+if (needsBkpMigration) {
+  db.transaction(() => {
+    db.pragma('foreign_keys = OFF');
+    db.exec(`
+      CREATE TABLE bundle_key_permissions_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key_id INTEGER NOT NULL REFERENCES access_keys(id) ON DELETE CASCADE,
+        bundle_id INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
+        permission TEXT NOT NULL DEFAULT 'preview' CHECK(permission IN ('preview', 'download', 'both', 'none')),
+        UNIQUE(key_id, bundle_id)
+      );
+      INSERT INTO bundle_key_permissions_new SELECT * FROM bundle_key_permissions;
+      DROP TABLE bundle_key_permissions;
+      ALTER TABLE bundle_key_permissions_new RENAME TO bundle_key_permissions;
+    `);
     db.pragma('foreign_keys = ON');
   })();
 }

@@ -406,10 +406,110 @@ router.post('/keys/:id/file-permissions/batch', requireAdmin, (req, res) => {
   res.json({ success: true });
 });
 
+/* ---- Per-key per-bundle permission management ---- */
+
+// GET /admin/keys/:id/bundles - Get all bundles with per-key permission info
+router.get('/keys/:id/bundles', requireAdmin, (req, res) => {
+  const key = AccessKey.findById(req.params.id);
+  if (!key) return res.status(404).json({ error: '密钥不存在' });
+
+  const bundles = Bundle.findAllFlat ? Bundle.findAllFlat() : Bundle.findAll();
+  const perms = AccessKey.getBundlePermissionMap(req.params.id);
+
+  const bundlesWithPerms = bundles.map(b => ({
+    id: b.id,
+    name: b.name,
+    visibility: b.visibility,
+    parent_id: b.parent_id || null,
+    fileCount: (b.files || []).length,
+    keyPermission: perms[b.id] || null,
+    globalPermission: key.permission
+  }));
+
+  res.json({ key, bundles: bundlesWithPerms });
+});
+
+// POST /admin/keys/:id/bundle-permission - Set per-bundle permission for a key
+router.post('/keys/:id/bundle-permission', requireAdmin, (req, res) => {
+  const key = AccessKey.findById(req.params.id);
+  if (!key) return res.status(404).json({ error: '密钥不存在' });
+
+  const { bundle_id, permission } = req.body;
+  if (!bundle_id) return res.status(400).json({ error: '缺少 bundle_id' });
+
+  if (permission === 'inherit') {
+    // Remove override → fall back to global
+    AccessKey.deleteBundlePermission(req.params.id, bundle_id);
+  } else if (['preview', 'download', 'both', 'none'].includes(permission)) {
+    AccessKey.setBundlePermission(req.params.id, bundle_id, permission);
+  } else {
+    return res.status(400).json({ error: '无效的权限设置' });
+  }
+
+  res.json({ success: true });
+});
+
+// POST /admin/keys/:id/bundle-permissions/batch - Batch set per-bundle permissions
+router.post('/keys/:id/bundle-permissions/batch', requireAdmin, (req, res) => {
+  const key = AccessKey.findById(req.params.id);
+  if (!key) return res.status(404).json({ error: '密钥不存在' });
+
+  const { permissions } = req.body;
+  if (!Array.isArray(permissions)) return res.status(400).json({ error: '无效参数' });
+
+  permissions.forEach(p => {
+    if (p.permission === 'inherit') {
+      AccessKey.deleteBundlePermission(req.params.id, p.bundle_id);
+    } else if (['preview', 'download', 'both', 'none'].includes(p.permission)) {
+      AccessKey.setBundlePermission(req.params.id, p.bundle_id, p.permission);
+    }
+  });
+
+  res.json({ success: true });
+});
+
+// GET /admin/bundles/:id/permissions - Get all keys with their permissions for a specific bundle
+router.get('/bundles/:id/permissions', requireAdmin, (req, res) => {
+  const bundle = Bundle.findById(req.params.id);
+  if (!bundle) return res.status(404).json({ error: '文件包不存在' });
+
+  const allKeys = AccessKey.findAll();
+  const keysWithPerms = allKeys.map(k => ({
+    id: k.id,
+    key: k.key,
+    label: k.label,
+    globalPermission: k.permission,
+    status: k.status,
+    bundlePermission: AccessKey.getBundlePermission(k.id, req.params.id)?.permission || null
+  }));
+
+  res.json({ bundle: { id: bundle.id, name: bundle.name, visibility: bundle.visibility }, keys: keysWithPerms });
+});
+
+// POST /admin/bundles/:id/permission - Set a key's permission on a specific bundle
+router.post('/bundles/:id/permission', requireAdmin, (req, res) => {
+  const bundle = Bundle.findById(req.params.id);
+  if (!bundle) return res.status(404).json({ error: '文件包不存在' });
+
+  const { key_id, permission } = req.body;
+  if (!key_id) return res.status(400).json({ error: '缺少 key_id' });
+
+  if (permission === 'inherit') {
+    AccessKey.deleteBundlePermission(key_id, req.params.id);
+  } else if (['preview', 'download', 'both', 'none'].includes(permission)) {
+    AccessKey.setBundlePermission(key_id, req.params.id, permission);
+  } else {
+    return res.status(400).json({ error: '无效的权限设置' });
+  }
+
+  res.json({ success: true });
+});
+
 // ============ DATA EXPORT / IMPORT ============
 
 // GET /admin/export — Download all data as JSON (for migration)
 router.get('/export', requireAdmin, (req, res) => {
+  const db = require('../database');
   const data = {
     access_keys: AccessKey.findAll(),
     files: File.findAll(),
@@ -420,7 +520,9 @@ router.get('/export', requireAdmin, (req, res) => {
         ...c,
         files: (c.files || []).map(f => f.uuid)
       }))
-    }))
+    })),
+    key_file_permissions: db.prepare('SELECT * FROM key_file_permissions').all(),
+    bundle_key_permissions: db.prepare('SELECT * FROM bundle_key_permissions').all()
   };
   res.attachment('data-export.json');
   res.json(data);
@@ -509,6 +611,17 @@ router.post('/import', requireAdmin, (req, res) => {
         `);
         data.key_file_permissions.forEach(p => {
           insertPerm.run(p.key_id, p.file_uuid, p.permission);
+        });
+      }
+
+      // Import bundle_key_permissions (raw table from script export)
+      if (Array.isArray(data.bundle_key_permissions)) {
+        const insertBkp = db.prepare(`
+          INSERT OR IGNORE INTO bundle_key_permissions (key_id, bundle_id, permission)
+          VALUES (?, ?, ?)
+        `);
+        data.bundle_key_permissions.forEach(p => {
+          insertBkp.run(p.key_id, p.bundle_id, p.permission);
         });
       }
     })();

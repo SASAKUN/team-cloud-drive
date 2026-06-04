@@ -6,7 +6,7 @@ const archiver = require('archiver');
 const File = require('../models/File');
 const Bundle = require('../models/Bundle');
 const { getMimeType, getCategory, getFileIcon, formatFileSize, isPreviewable } = require('../utils/mime');
-const { resolveAccessKey, canDownload, canDownloadFile, canPreview } = require('../middleware/accessKey');
+const { resolveAccessKey, canDownload, canDownloadFile, canPreview, canAccessBundle, canDownloadFromBundle, getEffectiveFilePerm } = require('../middleware/accessKey');
 const AccessKey = require('../models/AccessKey');
 const config = require('../config');
 
@@ -45,6 +45,7 @@ router.post('/key-entry', (req, res) => {
   // Store in session
   req.session.accessKey = found.key;
   req.session.accessPermission = found.permission;
+  req.session.accessKeyId = found.id;
 
   // Redirect to the original page
   res.redirect(redirect || '/');
@@ -54,6 +55,7 @@ router.post('/key-entry', (req, res) => {
 router.all('/key-clear', (req, res) => {
   delete req.session.accessKey;
   delete req.session.accessPermission;
+  delete req.session.accessKeyId;
   res.redirect('/');
 });
 
@@ -97,13 +99,19 @@ router.get('/', (req, res) => {
 
   // Helper: add metadata to a bundle and its children files
   function addBundleMeta(b) {
+    // Check if this key has bundle-level permission (file > bundle > global)
+    const bundleFileDownloadCheck = (f) => {
+      const effPerm = getEffectiveFilePerm(req, b.id, f.uuid);
+      if (effPerm === 'none') return false;
+      return f.visibility === 'public' || (f.visibility === 'download_only' && effPerm !== 'preview') || effPerm === 'download' || effPerm === 'both' || (f.visibility === 'download_only' && canDownload(req)) || canDownloadFile(req, f.uuid);
+    };
     return {
       ...b,
       files: b.files.map(f => ({
         ...f,
         icon: getFileIcon(f.category, f.original_name),
         sizeFormatted: formatFileSize(f.size_bytes),
-        canDownload: f.visibility === 'public' || (f.visibility === 'download_only' && canDownload(req)) || canDownloadFile(req, f.uuid)
+        canDownload: bundleFileDownloadCheck(f)
       })),
       children: (b.children || []).map(c => ({
         ...c,
@@ -111,7 +119,11 @@ router.get('/', (req, res) => {
           ...f,
           icon: getFileIcon(f.category, f.original_name),
           sizeFormatted: formatFileSize(f.size_bytes),
-          canDownload: f.visibility === 'public' || (f.visibility === 'download_only' && canDownload(req)) || canDownloadFile(req, f.uuid)
+          canDownload: (() => {
+            const effPerm = getEffectiveFilePerm(req, c.id, f.uuid);
+            if (effPerm === 'none') return false;
+            return f.visibility === 'public' || (f.visibility === 'download_only' && effPerm !== 'preview') || effPerm === 'download' || effPerm === 'both' || (f.visibility === 'download_only' && canDownload(req)) || canDownloadFile(req, f.uuid);
+          })()
         }))
       }))
     };
@@ -120,7 +132,9 @@ router.get('/', (req, res) => {
   // Fetch public bundles
   let bundles = [];
   if (!search) {
-    bundles = Bundle.findAllPublic().map(b => addBundleMeta(b));
+    bundles = Bundle.findAllPublic()
+      .filter(b => canAccessBundle(req, b.id))
+      .map(b => addBundleMeta(b));
   }
 
   // If user has access key, also include hidden bundles
@@ -128,7 +142,7 @@ router.get('/', (req, res) => {
     const allBundles = Bundle.findAll();
     const publicBundleIds = new Set(bundles.map(b => b.id));
     const hiddenBundles = allBundles
-      .filter(b => !publicBundleIds.has(b.id))
+      .filter(b => !publicBundleIds.has(b.id) && canAccessBundle(req, b.id))
       .map(b => ({ ...addBundleMeta(b), isHidden: true }));
     bundles = bundles.concat(hiddenBundles);
   }
@@ -245,6 +259,14 @@ router.get('/bundles/:id/download', (req, res) => {
   if (bundle.visibility === 'hidden' && !canPreview(req)) {
     return res.status(404).render('error', { title: '文件包不存在', message: '该文件包不存在或已被隐藏' });
   }
+  // Enforce bundle-level permissions (file > bundle > global)
+  if (req.accessKey && !canAccessBundle(req, bundle.id)) {
+    return res.status(403).render('error', { title: '权限不足', message: '您的密钥无权访问此文件包。' });
+  }
+  // Check download permission: bundle override or global
+  if (bundle.visibility === 'download_only' && !canDownloadFromBundle(req, bundle.id) && !canDownload(req)) {
+    return res.status(403).render('error', { title: '权限不足', message: '此文件包仅支持预览。使用下载密钥可解锁下载权限。' });
+  }
 
   // Collect all files from this bundle and its children
   const allBundleIds = Bundle.getAllDescendantIds(req.params.id);
@@ -255,7 +277,11 @@ router.get('/bundles/:id/download', (req, res) => {
   });
 
   const downloadable = allFiles.filter(f => {
+    // Check effective permission for this file in this bundle context
+    const effPerm = getEffectiveFilePerm(req, bundle.id, f.uuid);
+    if (effPerm === 'none') return false;
     if (f.visibility === 'public') return true;
+    if (effPerm === 'download' || effPerm === 'both') return true;
     if (f.visibility === 'download_only') return canDownload(req) || canDownloadFile(req, f.uuid);
     if (f.visibility === 'hidden') return canDownload(req) || canDownloadFile(req, f.uuid);
     return false;

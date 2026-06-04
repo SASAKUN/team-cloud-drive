@@ -13,6 +13,7 @@ function resolveAccessKey(req, res, next) {
       if (req.session) {
         req.session.accessKey = keyParam;
         req.session.accessPermission = key.permission;
+        req.session.accessKeyId = key.id;
       }
     }
   } else if (req.session && req.session.accessKey) {
@@ -23,6 +24,7 @@ function resolveAccessKey(req, res, next) {
       // Key was deleted or changed — clear session
       delete req.session.accessKey;
       delete req.session.accessPermission;
+      delete req.session.accessKeyId;
     }
   }
   next();
@@ -44,4 +46,25 @@ function canPreview(req) {
   return !!req.accessKey;
 }
 
-module.exports = { resolveAccessKey, canDownload, canDownloadFile, canPreview };
+// Check if a key can access (preview) content in a specific bundle
+// Respects: file > bundle > global priority
+function canAccessBundle(req, bundleId) {
+  if (!req.accessKey) return false;
+  const perm = AccessKey.getEffectiveBundlePermission(req.accessKey, bundleId);
+  if (perm === 'none') return false;
+  return true;
+}
+
+// Check if a key can download from a specific bundle
+function canDownloadFromBundle(req, bundleId) {
+  if (!req.accessKey) return false;
+  const perm = AccessKey.getEffectiveBundlePermission(req.accessKey, bundleId);
+  return perm === 'download' || perm === 'both';
+}
+
+// Check effective permission on a file within a bundle context
+function getEffectiveFilePerm(req, bundleId, fileUuid) {
+  return AccessKey.getEffectivePermission(req.accessKey, bundleId, fileUuid);
+}
+
+module.exports = { resolveAccessKey, canDownload, canDownloadFile, canPreview, canAccessBundle, canDownloadFromBundle, getEffectiveFilePerm };

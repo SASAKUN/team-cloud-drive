@@ -99,6 +99,79 @@ class AccessKey {
     // Fall back to global permission
     return key.permission === 'download' || key.permission === 'both';
   }
+
+  /* ---- Per-bundle permission overrides ---- */
+
+  // Get all per-bundle permissions for a key
+  static getBundlePermissions(keyId) {
+    return db.prepare(`
+      SELECT bkp.*, b.name as bundle_name, b.visibility as bundle_visibility
+      FROM bundle_key_permissions bkp
+      JOIN bundles b ON b.id = bkp.bundle_id
+      WHERE bkp.key_id = ?
+      ORDER BY b.name
+    `).all(keyId);
+  }
+
+  // Get permission for a specific key + bundle combo
+  static getBundlePermission(keyId, bundleId) {
+    return db.prepare(
+      'SELECT * FROM bundle_key_permissions WHERE key_id = ? AND bundle_id = ?'
+    ).get(keyId, bundleId);
+  }
+
+  // Set or update per-bundle permission for a key
+  static setBundlePermission(keyId, bundleId, permission) {
+    const existing = db.prepare(
+      'SELECT id FROM bundle_key_permissions WHERE key_id = ? AND bundle_id = ?'
+    ).get(keyId, bundleId);
+
+    if (existing) {
+      db.prepare('UPDATE bundle_key_permissions SET permission = ? WHERE id = ?').run(permission, existing.id);
+    } else {
+      db.prepare('INSERT INTO bundle_key_permissions (key_id, bundle_id, permission) VALUES (?, ?, ?)').run(keyId, bundleId, permission);
+    }
+  }
+
+  // Remove per-bundle permission for a key
+  static deleteBundlePermission(keyId, bundleId) {
+    return db.prepare('DELETE FROM bundle_key_permissions WHERE key_id = ? AND bundle_id = ?').run(keyId, bundleId);
+  }
+
+  // Get all bundle permissions for a key as a Map<bundle_id, permission>
+  static getBundlePermissionMap(keyId) {
+    const rows = db.prepare('SELECT bundle_id, permission FROM bundle_key_permissions WHERE key_id = ?').all(keyId);
+    const map = {};
+    rows.forEach(r => { map[r.bundle_id] = r.permission; });
+    return map;
+  }
+
+  // Get the effective permission for a key on a specific bundle
+  // Priority: bundle override > global. Returns: 'preview' | 'download' | 'both' | 'none'
+  // 'none' means explicitly denied — overrides global
+  static getEffectiveBundlePermission(key, bundleId) {
+    if (!key) return 'none';
+    const bp = db.prepare('SELECT permission FROM bundle_key_permissions WHERE key_id = ? AND bundle_id = ?').get(key.id, bundleId);
+    if (bp) return bp.permission; // explicit override: preview/download/both/none
+    return key.permission; // global fallback
+  }
+
+  // Get the effective permission for a key on a file within a bundle
+  // Priority: file override > bundle override > global
+  // Returns: 'preview' | 'download' | 'both' | 'none'
+  static getEffectivePermission(key, bundleId, fileUuid) {
+    if (!key) return 'none';
+    // 1. Check per-file override (highest priority)
+    const fp = db.prepare('SELECT permission FROM key_file_permissions WHERE key_id = ? AND file_uuid = ?').get(key.id, fileUuid);
+    if (fp) return fp.permission;
+    // 2. Check per-bundle override
+    if (bundleId) {
+      const bp = db.prepare('SELECT permission FROM bundle_key_permissions WHERE key_id = ? AND bundle_id = ?').get(key.id, bundleId);
+      if (bp) return bp.permission;
+    }
+    // 3. Fall back to global
+    return key.permission;
+  }
 }
 
 module.exports = AccessKey;
