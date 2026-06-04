@@ -15,12 +15,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Track selected files
   let selectedFiles = new DataTransfer();
   let uploading = false;
+  // Track which indices failed in last upload, for retry
+  let failedIndices = null;
 
   // ======== File Input Change ========
   fileInput.addEventListener('change', () => {
     for (const file of fileInput.files) {
       selectedFiles.items.add(file);
     }
+    failedIndices = null; // reset retry state when new files are added
+    resetUploadState();
     renderFileList();
     fileInput.value = '';
   });
@@ -57,6 +61,8 @@ document.addEventListener('DOMContentLoaded', () => {
       for (const file of files) {
         selectedFiles.items.add(file);
       }
+      failedIndices = null; // reset retry state when new files are added
+      resetUploadState();
       renderFileList();
     });
   }
@@ -113,7 +119,19 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     if (uploading) return;
 
-    const files = Array.from(selectedFiles.files);
+    let files = Array.from(selectedFiles.files);
+
+    // If retrying, only send previously failed files
+    const isRetry = failedIndices !== null && failedIndices.length > 0;
+    if (isRetry) {
+      files = files.filter((_, i) => failedIndices.includes(i));
+      if (files.length === 0) {
+        alert('没有需要重试的文件');
+        resetUploadState();
+        return;
+      }
+    }
+
     if (files.length === 0) {
       alert('请选择要上传的文件');
       return;
@@ -142,30 +160,77 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show progress area
     if (progressArea) {
       progressArea.style.display = 'block';
-      progressArea.innerHTML = buildProgressHTML(files.length);
+      progressArea.innerHTML = buildProgressHTML(files.length, isRetry ? failedIndices : null);
     }
 
     // Upload files concurrently
-    const results = await uploadConcurrently(files, description, visibility);
+    const results = await uploadConcurrently(files, description, visibility, isRetry ? failedIndices : null);
     const successCount = results.filter(r => r.success).length;
     const failCount = results.filter(r => !r.success).length;
 
-    if (failCount === 0) {
-      // All success — reload after brief pause
-      setTimeout(() => {
-        window.location.reload();
-      }, 800);
+    if (isRetry) {
+      // Retry: remove successfully-retried files from selectedFiles, keep track of still-failed ones
+      const newFailed = [];
+      let removedFromSelection = new DataTransfer();
+      const allFiles = Array.from(selectedFiles.files);
+
+      results.forEach((r, i) => {
+        const originalIndex = failedIndices[i];
+        if (r.success) {
+          // Mark this original index as succeeded — don't include in new selection
+          // (we'll skip it when rebuilding)
+        } else {
+          newFailed.push(originalIndex);
+        }
+      });
+
+      // Rebuild selectedFiles, excluding files that succeeded on retry
+      for (let i = 0; i < allFiles.length; i++) {
+        if (failedIndices.includes(i) && results[failedIndices.indexOf(i)]?.success) {
+          // This file just succeeded — don't add it back
+          continue;
+        }
+        removedFromSelection.items.add(allFiles[i]);
+      }
+      selectedFiles = removedFromSelection;
+      renderFileList();
+      failedIndices = newFailed.length > 0 ? newFailed : null;
+
+      if (newFailed.length === 0) {
+        // All retried files succeeded — reload
+        setTimeout(() => {
+          window.location.reload();
+        }, 800);
+      } else {
+        uploadBtn.textContent = `重试上传（${newFailed.length} 个失败）`;
+        uploadBtn.disabled = false;
+        fileInput.disabled = false;
+        uploading = false;
+        updateOverallStatus(`${successCount} 个重试成功，${newFailed.length} 个仍然失败，可继续重试`);
+      }
     } else {
-      // Some failed
-      uploadBtn.textContent = '重试上传';
-      uploadBtn.disabled = false;
-      fileInput.disabled = false;
-      uploading = false;
-      updateOverallStatus(`${successCount} 个成功，${failCount} 个失败，可重试`);
+      // Fresh upload
+      if (failCount === 0) {
+        setTimeout(() => {
+          window.location.reload();
+        }, 800);
+      } else {
+        // Record which indices failed (from original selectedFiles)
+        failedIndices = [];
+        results.forEach((r, i) => {
+          if (!r.success) failedIndices.push(i);
+        });
+        uploadBtn.textContent = `重试上传（${failCount} 个失败）`;
+        uploadBtn.disabled = false;
+        fileInput.disabled = false;
+        uploading = false;
+        updateOverallStatus(`${successCount} 个成功，${failCount} 个失败，可重试`);
+      }
     }
   });
 
-  async function uploadConcurrently(files, description, visibility) {
+  async function uploadConcurrently(files, description, visibility, indicesOverride) {
+    const indices = indicesOverride || files.map((_, i) => i);
     const results = new Array(files.length).fill(null);
     let completed = 0;
     let totalBytes = files.reduce((sum, f) => sum + f.size, 0);
@@ -267,7 +332,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ======== Progress UI Helpers ========
 
-  function buildProgressHTML(count) {
+  function buildProgressHTML(count, indicesOverride) {
+    const indices = indicesOverride || Array.from({ length: count }, (_, i) => i);
     let html = '<div class="upload-progress-container">';
     html += '<div class="progress-overall">';
     html += '<div class="progress-bar-track"><div class="progress-bar-fill" id="overallBar"></div></div>';
@@ -280,8 +346,9 @@ document.addEventListener('DOMContentLoaded', () => {
     html += '</div>';
     html += '<div class="progress-files" id="progressFiles">';
     for (let i = 0; i < count; i++) {
+      const displayName = selectedFiles.files[indices[i]]?.name || '';
       html += `<div class="progress-file-item" id="fileProgress${i}">
-        <span class="progress-file-name" id="fileName${i}"></span>
+        <span class="progress-file-name" id="fileName${i}">${escapeHtml(displayName)}</span>
         <span class="progress-file-status" id="fileStatus${i}">等待中</span>
         <div class="progress-bar-track file-bar"><div class="progress-bar-fill" id="fileBar${i}" style="width:0%"></div></div>
       </div>`;
@@ -324,6 +391,15 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateOverallStatus(text) {
     const el = document.getElementById('overallStatus');
     if (el) el.textContent = text;
+  }
+
+  function resetUploadState() {
+    uploading = false;
+    failedIndices = null;
+    uploadBtn.textContent = '上传';
+    uploadBtn.disabled = false;
+    fileInput.disabled = false;
+    if (progressArea) progressArea.style.display = 'none';
   }
 
   // ======== Format Helpers ========
