@@ -7,6 +7,7 @@ const File = require('../models/File');
 const Bundle = require('../models/Bundle');
 const { getMimeType, getCategory, getFileIcon, formatFileSize, isPreviewable } = require('../utils/mime');
 const { resolveAccessKey, canDownload, canDownloadFile, canPreview } = require('../middleware/accessKey');
+const AccessKey = require('../models/AccessKey');
 const config = require('../config');
 
 // Apply access key middleware to all public routes

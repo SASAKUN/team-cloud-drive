@@ -13,7 +13,7 @@ const app = express();
 // Middleware
 app.use(morgan('dev'));
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieSession({
   name: 'session',
   keys: [config.sessionSecret],

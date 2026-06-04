@@ -348,4 +348,93 @@ router.post('/keys/:id/file-permissions/batch', requireAdmin, (req, res) => {
   res.json({ success: true });
 });
 
+// ============ DATA EXPORT / IMPORT ============
+
+// GET /admin/export — Download all data as JSON (for migration)
+router.get('/export', requireAdmin, (req, res) => {
+  const data = {
+    access_keys: AccessKey.findAll(),
+    files: File.findAll(),
+    bundles: Bundle.findAll().map(b => ({
+      ...b,
+      files: (b.files || []).map(f => f.uuid),
+      children: (b.children || []).map(c => ({
+        ...c,
+        files: (c.files || []).map(f => f.uuid)
+      }))
+    }))
+  };
+  res.attachment('data-export.json');
+  res.json(data);
+});
+
+// POST /admin/import — Import JSON data
+router.post('/import', requireAdmin, (req, res) => {
+  const data = req.body;
+  if (!data) return res.status(400).json({ error: '无效数据' });
+
+  const db = require('../database');
+
+  try {
+    db.transaction(() => {
+      // Import access keys
+      if (Array.isArray(data.access_keys)) {
+        const insertKey = db.prepare(`
+          INSERT OR IGNORE INTO access_keys (id, key, label, permission, status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `);
+        data.access_keys.forEach(k => {
+          insertKey.run(k.id, k.key, k.label, k.permission, k.status, k.created_at);
+        });
+      }
+
+      // Import files (metadata only)
+      if (Array.isArray(data.files)) {
+        const insertFile = db.prepare(`
+          INSERT OR IGNORE INTO files (id, uuid, original_name, stored_name, mime_type, size_bytes, category, visibility, description, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        data.files.forEach(f => {
+          insertFile.run(f.id, f.uuid, f.original_name, f.stored_name, f.mime_type, f.size_bytes, f.category, f.visibility, f.description, f.created_at);
+        });
+      }
+
+      // Import bundles
+      if (Array.isArray(data.bundles)) {
+        const insertBundle = db.prepare(`
+          INSERT OR IGNORE INTO bundles (id, name, description, visibility, parent_id, created_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `);
+        const insertBundleFile = db.prepare(`
+          INSERT OR IGNORE INTO bundle_files (bundle_id, file_uuid, sort_order)
+          VALUES (?, ?, ?)
+        `);
+        data.bundles.forEach(b => {
+          insertBundle.run(b.id, b.name, b.description, b.visibility, b.parent_id || null, b.created_at);
+          if (Array.isArray(b.files)) {
+            b.files.forEach((fileUuid, idx) => {
+              insertBundleFile.run(b.id, fileUuid, idx);
+            });
+          }
+          if (Array.isArray(b.children)) {
+            b.children.forEach(c => {
+              insertBundle.run(c.id, c.name, c.description, c.visibility, c.parent_id, c.created_at);
+              if (Array.isArray(c.files)) {
+                c.files.forEach((fileUuid, idx) => {
+                  insertBundleFile.run(c.id, fileUuid, idx);
+                });
+              }
+            });
+          }
+        });
+      }
+    })();
+
+    res.json({ success: true, message: '数据导入成功' });
+  } catch (err) {
+    console.error('Import error:', err);
+    res.status(500).json({ error: '导入失败: ' + err.message });
+  }
+});
+
 module.exports = router;

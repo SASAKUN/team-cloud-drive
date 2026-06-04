@@ -42,6 +42,49 @@
         </a>
       </div>
     </div>
+
+    <div class="admin-section" style="margin-top:32px;">
+      <h2 style="margin-bottom:16px;">📥 数据迁移</h2>
+      <p style="color:#666;margin-bottom:12px;">从本地导出数据后，粘贴到下方即可导入到当前服务器。</p>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button onclick="showImport()" class="btn btn-primary">导入数据</button>
+        <a href="/admin/export" class="btn btn-secondary">导出数据</a>
+      </div>
+      <div id="import-area" style="display:none;">
+        <textarea id="import-data" placeholder="粘贴从其他服务器导出的 JSON 数据..." style="width:100%;height:200px;font-family:monospace;font-size:13px;padding:12px;border:1px solid #ddd;border-radius:8px;resize:vertical;"></textarea>
+        <button onclick="doImport()" class="btn btn-primary" style="margin-top:8px;">确认导入</button>
+        <span id="import-status" style="margin-left:12px;"></span>
+      </div>
+    </div>
+
+    <script>
+    function showImport() {
+      document.getElementById('import-area').style.display = 'block';
+    }
+    async function doImport() {
+      const raw = document.getElementById('import-data').value.trim();
+      if (!raw) return alert('请粘贴要导入的 JSON 数据');
+      let data;
+      try { data = JSON.parse(raw); } catch(e) { return alert('JSON 格式错误'); }
+      const status = document.getElementById('import-status');
+      status.textContent = '导入中...';
+      try {
+        const res = await fetch('/admin/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (res.ok) {
+          status.textContent = '✅ ' + result.message + '  刷新页面查看';
+        } else {
+          status.textContent = '❌ ' + (result.error || '导入失败');
+        }
+      } catch(e) {
+        status.textContent = '❌ 网络错误';
+      }
+    }
+    </script>
   </main>
 </body>
 </html>
