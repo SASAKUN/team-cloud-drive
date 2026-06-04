@@ -54,7 +54,7 @@
     <!-- File List -->
     <div class="admin-section">
       <div class="admin-list-header">
-        <h2>全部文件 · <%= files.length %> 个</h2>
+        <h2>全部文件 · <%= files.length %> 个<% if (invalidCount > 0) { %> <span style="color:var(--apple-red);font-size:14px;font-weight:400;">（<%= invalidCount %> 个失效）</span><% } %></h2>
         <div class="admin-batch-actions">
           <select id="batchVisibility" class="btn btn-sm btn-secondary">
             <option value="">批量设置可见性…</option>
@@ -63,6 +63,9 @@
             <option value="hidden">设为隐藏</option>
           </select>
           <button class="btn btn-sm btn-danger" onclick="batchDelete()">批量删除</button>
+          <% if (invalidCount > 0) { %>
+          <button class="btn btn-sm btn-danger-inline" onclick="cleanupInvalid()" style="background:#dc3545;color:#fff;border:none;">🗑 清理失效文件（<%= invalidCount %>）</button>
+          <% } %>
         </div>
       </div>
       <% if (files.length === 0) { %>
@@ -83,7 +86,7 @@
           </thead>
           <tbody>
             <% files.forEach(function(file) { %>
-            <tr class="file-row" id="file-<%= file.uuid %>" data-uuid="<%= file.uuid %>">
+            <tr class="file-row<%= file.missing ? ' file-missing' : '' %>" id="file-<%= file.uuid %>" data-uuid="<%= file.uuid %>">
               <td class="col-check">
                 <input type="checkbox" class="admin-checkbox" value="<%= file.uuid %>">
               </td>
@@ -91,6 +94,9 @@
                 <div class="file-name-cell">
                   <span class="file-icon-small"><%= file.icon %></span>
                   <span class="file-name-text"><%= file.original_name %></span>
+                  <% if (file.missing) { %>
+                  <span class="file-missing-badge" title="文件数据缺失，无法下载">⚠️ 失效</span>
+                  <% } %>
                 </div>
               </td>
               <td class="col-size"><%= file.sizeFormatted %></td>
@@ -195,6 +201,22 @@
         document.getElementById(`file-${uuid}`).remove();
       } else {
         alert('删除失败: ' + data.error);
+      }
+    } catch (err) {
+      alert('操作失败: ' + err.message);
+    }
+  }
+
+  async function cleanupInvalid() {
+    if (!confirm('确定要清理所有失效文件吗？\n\n失效文件 = 数据库有记录但磁盘上无实际数据，无法下载。\n此操作仅删除数据库记录，不影响有效文件。')) return;
+    try {
+      const resp = await fetch('/admin/files/cleanup-invalid', { method: 'POST' });
+      const data = await resp.json();
+      if (data.success) {
+        alert(`清理完成！已删除 ${data.deleted} 个失效文件记录。`);
+        location.reload();
+      } else {
+        alert('清理失败: ' + data.error);
       }
     } catch (err) {
       alert('操作失败: ' + err.message);

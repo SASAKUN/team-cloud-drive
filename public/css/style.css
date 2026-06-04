@@ -1431,6 +1431,42 @@ a:hover {
 .state-done .progress-file-name { color: var(--apple-green); }
 .state-error .progress-file-name { color: var(--apple-red); }
 
+/* Invalid file badge */
+.file-missing-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 8px;
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--apple-red);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  margin-left: 6px;
+}
+
+.file-missing {
+  opacity: 0.6;
+}
+
+.file-missing .file-name-text {
+  text-decoration: line-through;
+  color: var(--apple-text-tertiary);
+}
+
+.btn-danger-inline {
+  background: var(--apple-red) !important;
+  color: #fff !important;
+  border: none !important;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-danger-inline:hover {
+  background: #c0392b !important;
+}
+
 /* ========================================
    Key-File Permission Management
    ======================================== */

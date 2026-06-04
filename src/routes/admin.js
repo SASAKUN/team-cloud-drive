@@ -46,15 +46,23 @@ router.get('/', requireAdmin, (req, res) => {
 // GET /admin/files - File management page
 router.get('/files', requireAdmin, (req, res) => {
   const files = File.findAll();
-  const filesWithMeta = files.map(file => ({
-    ...file,
-    icon: getFileIcon(file.category, file.original_name),
-    sizeFormatted: formatFileSize(file.size_bytes)
-  }));
+  const filesWithMeta = files.map(file => {
+    const filePath = path.join(config.uploadDir, file.uuid, file.original_name);
+    const fileDir = path.join(config.uploadDir, file.uuid);
+    const missing = !fs.existsSync(filePath) && !(fs.existsSync(fileDir) && fs.readdirSync(fileDir).length > 0);
+    return {
+      ...file,
+      icon: getFileIcon(file.category, file.original_name),
+      sizeFormatted: formatFileSize(file.size_bytes),
+      missing
+    };
+  });
+  const invalidCount = filesWithMeta.filter(f => f.missing).length;
   res.render('admin-files', {
     title: '文件管理',
     currentPage: 'files',
     files: filesWithMeta,
+    invalidCount,
     success: req.query.success || null,
     error: null
   });
@@ -196,6 +204,36 @@ router.post('/files/batch/delete', requireAdmin, (req, res) => {
     }
   });
   res.json({ success: true });
+});
+
+// GET /admin/files/invalid — List files whose physical data is missing from disk
+router.get('/files/invalid', requireAdmin, (req, res) => {
+  const files = File.findAll();
+  const invalid = files.filter(f => {
+    const dir = path.join(config.uploadDir, f.uuid, f.original_name);
+    return !fs.existsSync(dir);
+  });
+  res.json({ invalid: invalid.map(f => ({ uuid: f.uuid, name: f.original_name, size: f.size_bytes })), count: invalid.length });
+});
+
+// POST /admin/files/cleanup-invalid — Delete all DB records whose physical files are missing
+router.post('/files/cleanup-invalid', requireAdmin, (req, res) => {
+  const files = File.findAll();
+  let deleted = 0;
+
+  files.forEach(f => {
+    const dir = path.join(config.uploadDir, f.uuid, f.original_name);
+    if (!fs.existsSync(dir)) {
+      // Also try checking the directory itself (multer stores as uploadDir/uuid/filename)
+      const fileDir = path.join(config.uploadDir, f.uuid);
+      if (!fs.existsSync(fileDir) || fs.readdirSync(fileDir).length === 0) {
+        File.deleteByUuid(f.uuid);
+        deleted++;
+      }
+    }
+  });
+
+  res.json({ success: true, deleted });
 });
 
 // ============ BUNDLE MANAGEMENT ============
