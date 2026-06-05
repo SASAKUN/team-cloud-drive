@@ -10,6 +10,7 @@ const { requireAdmin, isAdmin } = require('../middleware/auth');
 const { getMimeType, getCategory, getFileIcon, formatFileSize } = require('../utils/mime');
 const storage = require('../utils/storage');
 const config = require('../config');
+const db = require('../database');
 
 // ============ ADMIN LOGIN ============
 
@@ -502,9 +503,8 @@ router.post('/import', requireAdmin, async (req, res) => {
   const data = req.body;
   if (!data) return res.status(400).json({ error: '无效数据' });
 
-  const db = require('../database');
-
   try {
+
     await db.transaction(async (tx) => {
       if (Array.isArray(data.access_keys)) {
         const insertKey = tx.prepare(
