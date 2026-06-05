@@ -56,11 +56,14 @@ app.use((err, req, res, next) => {
 
 // Start server after DB initialization
 async function start() {
-  // Initialize database (async)
-  require('./src/database');
-
-  // Wait a tick for DB init to complete
-  await new Promise(resolve => setTimeout(resolve, 100));
+  // Initialize database and wait for it to be ready
+  const db = require('./src/database');
+  try {
+    await db.initPromise;
+  } catch (err) {
+    console.error('Failed to initialize database:', err.message);
+    process.exit(1);
+  }
 
   app.listen(config.port, () => {
     console.log(`📁 Team Cloud Drive running at ${config.baseUrl}`);
