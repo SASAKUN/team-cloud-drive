@@ -1,56 +1,56 @@
 const db = require('../database');
 
 class File {
-  static create({ uuid, originalName, storedName, mimeType, sizeBytes, category, description, visibility }) {
+  static async create({ uuid, originalName, storedName, mimeType, sizeBytes, category, description, visibility, storageKey }) {
     const stmt = db.prepare(
-      `INSERT INTO files (uuid, original_name, stored_name, mime_type, size_bytes, category, description, visibility)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO files (uuid, original_name, stored_name, mime_type, size_bytes, category, description, visibility, storage_key)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
-    const result = stmt.run(uuid, originalName, storedName, mimeType, sizeBytes, category, description || null, visibility || 'public');
+    const result = await stmt.run(uuid, originalName, storedName, mimeType, sizeBytes, category, description || null, visibility || 'public', storageKey || null);
     return this.findById(result.lastInsertRowid);
   }
 
-  static findById(id) {
+  static async findById(id) {
     return db.prepare('SELECT * FROM files WHERE id = ?').get(id);
   }
 
-  static findByUuid(uuid) {
+  static async findByUuid(uuid) {
     return db.prepare('SELECT * FROM files WHERE uuid = ?').get(uuid);
   }
 
   // Public-facing: only show public and download_only files
-  static findAllPublic() {
+  static async findAllPublic() {
     return db.prepare(
       "SELECT * FROM files WHERE visibility IN ('public', 'download_only') ORDER BY created_at DESC"
     ).all();
   }
 
-  static findAllPublicByCategory(category) {
+  static async findAllPublicByCategory(category) {
     return db.prepare(
       "SELECT * FROM files WHERE visibility IN ('public', 'download_only') AND category = ? ORDER BY created_at DESC"
     ).all(category);
   }
 
-  static searchPublic(query) {
+  static async searchPublic(query) {
     return db.prepare(
       "SELECT * FROM files WHERE visibility IN ('public', 'download_only') AND original_name LIKE ? ORDER BY created_at DESC"
     ).all(`%${query}%`);
   }
 
   // Admin: all files
-  static findAll() {
+  static async findAll() {
     return db.prepare('SELECT * FROM files ORDER BY created_at DESC').all();
   }
 
-  static setVisibility(uuid, visibility) {
+  static async setVisibility(uuid, visibility) {
     return db.prepare('UPDATE files SET visibility = ? WHERE uuid = ?').run(visibility, uuid);
   }
 
-  static updateDescription(uuid, description) {
+  static async updateDescription(uuid, description) {
     return db.prepare('UPDATE files SET description = ? WHERE uuid = ?').run(description, uuid);
   }
 
-  static deleteByUuid(uuid) {
+  static async deleteByUuid(uuid) {
     return db.prepare('DELETE FROM files WHERE uuid = ?').run(uuid);
   }
 }

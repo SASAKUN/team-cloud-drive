@@ -47,35 +47,13 @@ const upload = multer({
   limits: { fileSize: config.maxFileSizeBytes }
 });
 
-// Error handler middleware for multer file size errors
+// Simplified error handler (actual rendering handled by route inline)
 function handleUploadError(err, req, res, next) {
   if (err.code === 'LIMIT_FILE_SIZE') {
     const maxMB = config.maxFileSizeMB;
-    if (req.accepts('html')) {
-      const File = require('../models/File');
-      const { getFileIcon, formatFileSize } = require('../utils/mime');
-      const files = File.findAll().map(f => ({ ...f, icon: getFileIcon(f.category, f.original_name), sizeFormatted: formatFileSize(f.size_bytes) }));
-      return res.status(413).render('admin', {
-        title: '管理后台',
-        files,
-        error: `文件大小超过限制（最大 ${maxMB}MB）。请压缩文件后重新上传。`,
-        success: null
-      });
-    }
     return res.status(413).json({ error: `文件大小超过限制（最大 ${maxMB}MB）` });
   }
   if (err.message && err.message.startsWith('Unsupported file type')) {
-    if (req.accepts('html')) {
-      const File = require('../models/File');
-      const { getFileIcon, formatFileSize } = require('../utils/mime');
-      const files = File.findAll().map(f => ({ ...f, icon: getFileIcon(f.category, f.original_name), sizeFormatted: formatFileSize(f.size_bytes) }));
-      return res.render('admin', {
-        title: '管理后台',
-        files,
-        error: err.message,
-        success: null
-      });
-    }
     return res.status(400).json({ error: err.message });
   }
   next(err);

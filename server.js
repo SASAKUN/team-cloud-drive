@@ -5,9 +5,6 @@ const cookieSession = require('cookie-session');
 const config = require('./src/config');
 const { isAdmin } = require('./src/middleware/auth');
 
-// Initialize database
-require('./src/database');
-
 const app = express();
 
 // Middleware
@@ -30,7 +27,6 @@ app.set('views', path.join(__dirname, 'views'));
 // Make admin status available to views
 app.use((req, res, next) => {
   res.locals.isAdmin = isAdmin(req);
-  // Auto-detect base URL from request (works on localhost, ngrok, Render, etc.)
   const proto = req.get('x-forwarded-proto') || req.protocol;
   const host = req.get('x-forwarded-host') || req.get('host');
   res.locals.baseUrl = `${proto}://${host}`;
@@ -58,8 +54,30 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(config.port, () => {
-  console.log(`📁 Team Cloud Drive running at ${config.baseUrl}`);
-  console.log(`🔗 分享链接: ${config.baseUrl}`);
-  console.log(`⚙️  管理后台: ${config.baseUrl}/admin`);
+// Start server after DB initialization
+async function start() {
+  // Initialize database (async)
+  require('./src/database');
+
+  // Wait a tick for DB init to complete
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  app.listen(config.port, () => {
+    console.log(`📁 Team Cloud Drive running at ${config.baseUrl}`);
+    console.log(`🔗 分享链接: ${config.baseUrl}`);
+    console.log(`⚙️  管理后台: ${config.baseUrl}/admin`);
+    if (config.databaseUrl) {
+      console.log(`🐘 Using PostgreSQL (Supabase)`);
+    } else {
+      console.log(`💾 Using SQLite (local)`);
+    }
+    if (config.r2AccessKeyId) {
+      console.log(`☁️  Using Cloudflare R2 storage`);
+    }
+  });
+}
+
+start().catch(err => {
+  console.error('Failed to start:', err);
+  process.exit(1);
 });

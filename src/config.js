@@ -6,9 +6,18 @@ module.exports = {
   sessionSecret: process.env.SESSION_SECRET || 'change-me',
   uploadDir: process.env.UPLOAD_DIR || './data/uploads',
   databasePath: process.env.DATABASE_PATH || './data/database.sqlite',
+  databaseUrl: process.env.DATABASE_URL || null,
   maxFileSizeMB: parseInt(process.env.MAX_FILE_SIZE_MB, 10) || 500,
   baseUrl: process.env.BASE_URL || 'http://localhost:3000',
+
+  // R2 / S3-compatible object storage
+  r2AccountId: process.env.R2_ACCOUNT_ID || null,
+  r2AccessKeyId: process.env.R2_ACCESS_KEY_ID || null,
+  r2SecretAccessKey: process.env.R2_SECRET_ACCESS_KEY || null,
+  r2BucketName: process.env.R2_BUCKET_NAME || null,
+  r2Endpoint: process.env.R2_ENDPOINT || null,
+
   get maxFileSizeBytes() {
     return this.maxFileSizeMB * 1024 * 1024;
-  }
+  },
 };
