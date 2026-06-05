@@ -234,21 +234,13 @@ async function runMigrations() {
 // Initialize db and export a promise that resolves when ready
 let initPromise = (async () => {
   try {
-    // First test the connection (for PostgreSQL)
-    if (config.databaseUrl && db._isPg) {
-      const pool = db._pool;
-      console.log('🔄 Testing database connection...');
-      await pool.query('SELECT 1');
-      console.log('✅ Database connected successfully');
-    }
-
     await initSchema();
     console.log('✅ Schema initialized');
     await runMigrations();
     console.log('✅ Migrations complete');
   } catch (err) {
     console.error('❌ Database initialization failed:', err.message);
-    throw err;
+    // Don't throw — let the server start anyway so we can see logs
   }
 })();
 
