@@ -231,13 +231,30 @@ async function runMigrations() {
   }
 }
 
-// Initialize on module load (async IIFE)
-(async () => {
-  await initSchema();
-  await runMigrations();
+// Initialize db and export a promise that resolves when ready
+let initPromise = (async () => {
+  try {
+    // First test the connection (for PostgreSQL)
+    if (config.databaseUrl && db._isPg) {
+      const pool = db._pool;
+      console.log('🔄 Testing database connection...');
+      await pool.query('SELECT 1');
+      console.log('✅ Database connected successfully');
+    }
+
+    await initSchema();
+    console.log('✅ Schema initialized');
+    await runMigrations();
+    console.log('✅ Migrations complete');
+  } catch (err) {
+    console.error('❌ Database initialization failed:', err.message);
+    throw err;
+  }
 })();
 
 // Export schema builders for the adapter
 module.exports = db;
 module.exports.getPgSchema = () => pgSchema;
 module.exports.getSqliteSchema = () => sqliteSchema;
+module.exports.initPromise = initPromise;
+
