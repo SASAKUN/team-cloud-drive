@@ -24,6 +24,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// Date formatting helper – handles both SQLite strings and PostgreSQL Date objects
+app.locals.formatDate = function(d) {
+  if (!d) return '';
+  if (d instanceof Date) return d.toLocaleString('zh-CN');
+  if (typeof d === 'string') return new Date(d).toLocaleString('zh-CN');
+  return String(d);
+};
+app.locals.formatDateShort = function(d) {
+  if (!d) return '';
+  var date = d instanceof Date ? d : new Date(d);
+  if (isNaN(date.getTime())) return String(d);
+  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+};
+
 // Make admin status available to views
 app.use((req, res, next) => {
   res.locals.isAdmin = isAdmin(req);

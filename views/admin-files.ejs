@@ -101,7 +101,7 @@
               </td>
               <td class="col-size"><%= file.sizeFormatted %></td>
               <td class="col-type"><%= file.category === 'document' ? '文档' : file.category === 'spreadsheet' ? '表格' : file.category === 'presentation' ? '演示' : file.category === 'video' ? '视频' : '其他' %></td>
-              <td class="col-date"><%= file.created_at %></td>
+              <td class="col-date"><%= formatDate(file.created_at) %></td>
               <td class="col-vis">
                 <select onchange="changeVisibility('<%= file.uuid %>', this.value)" class="vis-select vis-<%= file.visibility %>">
                   <option value="public" <%= file.visibility === 'public' ? 'selected' : '' %>>公开</option>

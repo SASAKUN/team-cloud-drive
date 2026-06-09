@@ -43,7 +43,7 @@
               <tr><td>文件名</td><td><%= file.original_name %></td></tr>
               <tr><td>类型</td><td><%= file.category === 'document' ? '文档' : file.category === 'spreadsheet' ? '表格' : file.category === 'presentation' ? '演示' : '其他' %></td></tr>
               <tr><td>大小</td><td><%= file.sizeFormatted %></td></tr>
-              <tr><td>上传时间</td><td><%= file.created_at %></td></tr>
+              <tr><td>上传时间</td><td><%= formatDate(file.created_at) %></td></tr>
               <% if (file.description) { %>
               <tr><td>描述</td><td><%= file.description %></td></tr>
               <% } %>

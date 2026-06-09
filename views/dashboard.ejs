@@ -120,7 +120,7 @@
       <div class="announcement-bar">
         <span class="announcement-label">最近更新</span>
         <% recentFiles.forEach(function(f, i) { %>
-          <a href="/files/<%= f.uuid %>" class="announcement-link"><%= f.original_name %><span class="announcement-date">（<%= f.created_at ? new Date(f.created_at.replace(' ','T') + 'Z').toLocaleDateString('zh-CN', {month:'short',day:'numeric'}) : '' %>）</span></a>
+          <a href="/files/<%= f.uuid %>" class="announcement-link"><%= f.original_name %><span class="announcement-date">（<%= formatDateShort(f.created_at) %>）</span></a>
         <% }); %>
       </div>
       <% } %>
