@@ -48,16 +48,24 @@ router.get('/', requireAdmin, async (req, res) => {
 router.get('/files', requireAdmin, async (req, res) => {
   const files = await File.findAll();
   const filesWithMeta = [];
+  let r2Checks = 0, r2Found = 0, r2Errors = 0;
   for (const file of files) {
     const key = storage.makeKey(file.uuid, file.original_name);
-    const missing = !(await storage.fileExists(key));
+    const exists = await storage.fileExists(key);
+    r2Checks++;
+    if (exists) r2Found++;
+    if (exists === false && storage.r2Enabled) r2Errors++;
     filesWithMeta.push({
       ...file,
       icon: getFileIcon(file.category, file.original_name),
       sizeFormatted: formatFileSize(file.size_bytes),
-      missing
+      missing: !exists
     });
+    if (r2Checks <= 3) {
+      console.log('🔍 R2 check:', key, '=>', exists ? 'FOUND' : 'MISSING');
+    }
   }
+  console.log('📊 R2 results:', r2Found + '/' + r2Checks + ' files found,', r2Errors, 'R2 check failures');
   const invalidCount = filesWithMeta.filter(f => f.missing).length;
   res.render('admin-files', {
     title: '文件管理', currentPage: 'files', files: filesWithMeta,

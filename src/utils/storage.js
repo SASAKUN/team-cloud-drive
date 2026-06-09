@@ -155,6 +155,12 @@ async function fileExists(key) {
       await r2Client.send(command);
       return true;
     } catch (e) {
+      // Log first few errors for debugging
+      if (!fileExists._errorCount) fileExists._errorCount = 0;
+      if (fileExists._errorCount < 3) {
+        console.error('❌ R2 fileExists error for', key, ':', e.name, e.message?.substring(0, 200));
+        fileExists._errorCount++;
+      }
       return false;
     }
   }
