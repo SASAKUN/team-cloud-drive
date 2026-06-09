@@ -79,15 +79,17 @@ let _db = null;
 function getDb() {
   if (_db) return _db;
 
-  if (usePostgres) {
-   // Debug: log which host we're connecting to
-const urlObj = new URL(config.databaseUrl);
-console.log('🔍 DB host:', urlObj.hostname, 'port:', urlObj.port, 'user:', urlObj.username);
+   if (usePostgres) {
+    const { Pool } = require('pg');
 
-const pool = new Pool({
-  connectionString: config.databaseUrl,
-  ssl: { rejectUnauthorized: false },
-});
+    // Debug: log which host we're connecting to
+    const urlObj = new URL(config.databaseUrl);
+    console.log('🔍 DB host:', urlObj.hostname, 'port:', urlObj.port, 'user:', urlObj.username);
+
+    const pool = new Pool({
+      connectionString: config.databaseUrl,
+      ssl: { rejectUnauthorized: false },
+    });
 
     // Track if we've initialized schema
     let schemaInitialized = false;
