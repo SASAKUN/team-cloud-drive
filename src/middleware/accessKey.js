@@ -106,4 +106,38 @@ function getEffectiveFilePerm(req, bundleId, fileUuid) {
   return req.accessKey.permission;
 }
 
-module.exports = { resolveAccessKey, canDownload, canDownloadFile, canPreview, canAccessBundle, canDownloadFromBundle, getEffectiveFilePerm };
+// Check if a file is downloadable, considering the most restrictive bundle override
+// Mirrors the dashboard bundle file check: ensures bundle-level 'none' override
+// cannot be bypassed from the detail page or download route.
+async function canDownloadFileWithBundleContext(req, fileUuid, fileVisibility) {
+  // Quick path: public files are always downloadable
+  if (fileVisibility === 'public') return true;
+  // Quick path: no access key → use standard logic
+  if (!req.accessKey) return false;
+
+  const Bundle = require('../models/Bundle');
+  const bundleIds = await Bundle.findBundlesByFileUuid(fileUuid);
+
+  // Check standalone file permission first (no bundle context)
+  const standaloneOk = (fileVisibility === 'download_only' && canDownload(req)) || canDownloadFile(req, fileUuid);
+
+  // If file is not in any bundle, use standalone check
+  if (bundleIds.length === 0) return standaloneOk;
+
+  // For each bundle the file belongs to, check effective permission
+  for (const bundleId of bundleIds) {
+    const effPerm = getEffectiveFilePerm(req, bundleId, fileUuid);
+    if (effPerm === 'none') continue; // bundle blocks this key entirely
+
+    const ok = (fileVisibility === 'download_only' && effPerm !== 'preview') ||
+               effPerm === 'download' ||
+               effPerm === 'both' ||
+               (fileVisibility === 'download_only' && canDownload(req)) ||
+               canDownloadFile(req, fileUuid);
+    if (ok) return true;
+  }
+
+  return standaloneOk;
+}
+
+module.exports = { resolveAccessKey, canDownload, canDownloadFile, canPreview, canAccessBundle, canDownloadFromBundle, getEffectiveFilePerm, canDownloadFileWithBundleContext };

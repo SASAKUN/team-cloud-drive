@@ -112,6 +112,13 @@ class Bundle {
     return db.prepare('DELETE FROM bundles WHERE id = ?').run(id);
   }
 
+  // Find all bundles a file belongs to
+  static async findBundlesByFileUuid(fileUuid) {
+    return db.prepare(
+      'SELECT bundle_id FROM bundle_files WHERE file_uuid = ?'
+    ).all(fileUuid).map(r => r.bundle_id);
+  }
+
   // Get all descendant bundle IDs (for recursive download)
   static async getAllDescendantIds(bundleId) {
     const ids = [Number(bundleId)];

@@ -5,7 +5,7 @@ const archiver = require('archiver');
 const File = require('../models/File');
 const Bundle = require('../models/Bundle');
 const { getMimeType, getCategory, getFileIcon, formatFileSize, isPreviewable } = require('../utils/mime');
-const { resolveAccessKey, canDownload, canDownloadFile, canPreview, canAccessBundle, canDownloadFromBundle, getEffectiveFilePerm } = require('../middleware/accessKey');
+const { resolveAccessKey, canDownload, canDownloadFile, canPreview, canAccessBundle, canDownloadFromBundle, getEffectiveFilePerm, canDownloadFileWithBundleContext } = require('../middleware/accessKey');
 const AccessKey = require('../models/AccessKey');
 const storage = require('../utils/storage');
 
@@ -160,7 +160,7 @@ router.get('/files/:uuid', async (req, res) => {
     return res.status(404).render('error', { title: '文件未找到', message: '该文件不存在或已被隐藏' });
   }
 
-  const canDownloadFileItem = file.visibility === 'public' || canDownload(req) || canDownloadFile(req, file.uuid);
+  const canDownloadFileItem = await canDownloadFileWithBundleContext(req, file.uuid, file.visibility);
   const previewable = isPreviewable(file.mime_type, file.category);
 
   res.render('file-detail', {
@@ -182,7 +182,7 @@ router.get('/files/:uuid/download', async (req, res) => {
     return res.status(404).render('error', { title: '文件未找到', message: '该文件不存在' });
   }
 
-  const canDl = file.visibility === 'public' || canDownload(req) || canDownloadFile(req, file.uuid);
+  const canDl = await canDownloadFileWithBundleContext(req, file.uuid, file.visibility);
   if (!canDl) {
     return res.status(403).render('error', { title: '权限不足', message: '此文件仅支持在线预览，不支持下载。使用下载密钥可解锁下载权限。' });
   }
