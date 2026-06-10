@@ -138,22 +138,16 @@ async function deleteFile(key) {
 
 /**
  * Check if a file exists in storage
+ * When R2 is enabled, trust storage_key from DB (verified during upload).
+ * GetObject/HeadObject calls trigger SSL handshake issues on some hosts.
  */
 async function fileExists(key) {
   if (r2Enabled) {
-    try {
-      const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
-      await r2Client.send(command);
+    // Trust storage_key — actual access is verified when file is downloaded
+    if (key && key.startsWith('files/')) {
       return true;
-    } catch (e) {
-      // Log first few errors for debugging
-      if (!fileExists._errorCount) fileExists._errorCount = 0;
-      if (fileExists._errorCount < 3) {
-        console.error('❌ R2 fileExists error for', key, ':', e.name, e.message?.substring(0, 200));
-        fileExists._errorCount++;
-      }
-      return false;
     }
+    return false;
   }
   return fs.existsSync(path.join(config.uploadDir, key));
 }
