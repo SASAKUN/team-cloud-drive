@@ -9,14 +9,6 @@ const r2Enabled = !!(config.r2AccessKeyId && config.r2SecretAccessKey);
 
 let r2Client = null;
 if (r2Enabled) {
-  // Use custom https agent for compatibility (Render works fine without)
-  const https = require('https');
-  const { NodeHttpHandler } = require('@smithy/node-http-handler');
-  const agent = new https.Agent({
-    rejectUnauthorized: false, // tolerate proxy/TLS issues in dev
-    minVersion: 'TLSv1.2',
-  });
-
   r2Client = new S3Client({
     region: 'auto',
     endpoint: config.r2Endpoint,
@@ -25,7 +17,6 @@ if (r2Enabled) {
       secretAccessKey: config.r2SecretAccessKey,
     },
     forcePathStyle: true,
-    requestHandler: new NodeHttpHandler({ httpsAgent: agent }),
   });
 }
 
