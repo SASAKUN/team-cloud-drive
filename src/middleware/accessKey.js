@@ -5,6 +5,7 @@ function resolveAccessKey(req, res, next) {
 
   async function resolve() {
     if (keyParam) {
+      console.log('🔑 resolveAccessKey: received key from URL:', keyParam);
       try {
         const key = await AccessKey.findByKey(keyParam);
         if (key) {

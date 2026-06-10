@@ -20,7 +20,19 @@ class AccessKey {
   }
 
   static async findByKey(key) {
-    return db.prepare('SELECT * FROM access_keys WHERE key = ? AND status = ?').get(key, 'active');
+    const row = await db.prepare('SELECT * FROM access_keys WHERE key = ? AND status = ?').get(key, 'active');
+    if (!row) {
+      // Diagnostic: check if key exists with any status
+      const anyRow = await db.prepare('SELECT * FROM access_keys WHERE key = ?').get(key);
+      if (anyRow) {
+        console.log('🔑 Key', key, 'found but status is', anyRow.status, '- not active');
+      } else {
+        console.log('🔑 Key', key, 'NOT FOUND in access_keys table');
+      }
+    } else {
+      console.log('🔑 Key', key, 'FOUND — permission:', row.permission, 'id:', row.id);
+    }
+    return row;
   }
 
   static async findAll() {
