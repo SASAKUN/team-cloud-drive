@@ -9,15 +9,20 @@ const r2Enabled = !!(config.r2AccessKeyId && config.r2SecretAccessKey);
 
 let r2Client = null;
 if (r2Enabled) {
+  // Force HTTP to work around TLS handshake incompatibility on Render
+  // (Cloudflare R2 S3 API supports both HTTP and HTTPS)
+  const endpoint = (config.r2Endpoint || '').replace(/^https:\/\//, 'http://');
+  
   r2Client = new S3Client({
     region: 'auto',
-    endpoint: config.r2Endpoint,
+    endpoint,
     credentials: {
       accessKeyId: config.r2AccessKeyId,
       secretAccessKey: config.r2SecretAccessKey,
     },
     forcePathStyle: true,
   });
+  console.log('☁️  R2 endpoint:', endpoint);
 }
 
 const BUCKET = config.r2BucketName;
