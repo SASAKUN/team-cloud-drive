@@ -60,32 +60,77 @@ async function uploadFile(key, source, contentType) {
 }
 
 /**
+ * Fetch a presigned URL with redirect following and TLS fallback.
+ * Tries: 1) HTTPS directly  2) HTTP with redirect following  3) HTTPS after redirect
+ */
+function fetchPresigned(signedUrl, timeout = 30000) {
+  const https = require('https');
+  const http = require('http');
+  const url = require('url');
+
+  return new Promise((resolve, reject) => {
+    function attempt(urlStr, redirectCount) {
+      if (redirectCount > 5) return reject(new Error('Too many redirects'));
+
+      const parsed = url.parse(urlStr);
+      const isHttps = parsed.protocol === 'https:';
+      const mod = isHttps ? https : http;
+      const agentOpts = { rejectUnauthorized: false, keepAlive: false };
+
+      const req = mod.get(urlStr, { agent: new mod.Agent(agentOpts), timeout }, (res) => {
+        const status = res.statusCode;
+
+        // Follow redirects (301, 302, 307, 308)
+        if ((status === 301 || status === 302 || status === 307 || status === 308) && res.headers.location) {
+          const redirectUrl = url.resolve(urlStr, res.headers.location);
+          res.resume(); // drain response
+          console.log(`  ↪ R2 redirect (${status}) → ${redirectUrl.substring(0, 80)}...`);
+          return attempt(redirectUrl, redirectCount + 1);
+        }
+
+        if (status >= 400) {
+          let body = '';
+          res.on('data', c => body += c);
+          res.on('end', () => {
+            console.error(`R2 fetch error: status=${status}, body=${body.substring(0, 300)}`);
+            reject(new Error(`R2 returned ${status}: ${body.substring(0, 200)}`));
+          });
+          return;
+        }
+
+        resolve(res);
+      });
+
+      req.on('timeout', () => { req.destroy(); reject(new Error('Connection timeout')); });
+      req.on('error', reject);
+    }
+
+    // Start with HTTPS (original presigned URL)
+    const httpsUrl = signedUrl;
+    attempt(httpsUrl, 0);
+  });
+}
+
+/**
  * Get a readable stream for a file (for piping to archiver etc.)
  * Returns { stream, size, contentType } or null
  */
 async function getReadStream(key) {
   if (r2Enabled) {
-    // Generate presigned URL, then fetch via HTTP to avoid TLS issues
     const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
     const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 300 });
-    const httpUrl = signedUrl.replace(/^https:\/\//, 'http://');
 
-    return new Promise((resolve, reject) => {
-      const http = require('http');
-      http.get(httpUrl, (r2Res) => {
-        if (r2Res.statusCode >= 300) {
-          let body = '';
-          r2Res.on('data', c => body += c);
-          r2Res.on('end', () => reject(new Error(`R2 returned ${r2Res.statusCode}: ${body.substring(0, 200)}`)));
-          return;
-        }
-        resolve({
-          stream: r2Res,
-          size: parseInt(r2Res.headers['content-length'] || '0'),
-          contentType: r2Res.headers['content-type'] || 'application/octet-stream',
-        });
-      }).on('error', reject);
-    });
+    try {
+      const r2Res = await fetchPresigned(signedUrl);
+      return {
+        stream: r2Res,
+        size: parseInt(r2Res.headers['content-length'] || '0'),
+        contentType: r2Res.headers['content-type'] || 'application/octet-stream',
+      };
+    } catch (err) {
+      console.error('getReadStream failed for', key, ':', err.message);
+      return null;
+    }
   }
 
   const localPath = path.join(config.uploadDir, key);
@@ -122,36 +167,26 @@ async function streamFile(key, res, options = {}) {
       // Step 1: Generate presigned URL (pure local crypto, no network call)
       const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
       const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 300 });
-      const httpUrl = signedUrl.replace(/^https:\/\//, 'http://');
 
-      // Step 2: Fetch from R2 via plain HTTP (bypasses TLS incompatibility)
-      const http = require('http');
-      http.get(httpUrl, (r2Res) => {
-        if (r2Res.statusCode >= 300) {
-          let body = '';
-          r2Res.on('data', c => body += c);
-          r2Res.on('end', () => {
-            console.error('R2 presigned fetch failed:', r2Res.statusCode, body.substring(0, 300));
-            if (!res.headersSent) res.status(502).send('File download failed — storage temporarily unavailable');
-          });
-          return;
-        }
+      // Step 2: Fetch from R2 with redirect-following (HTTPS → HTTP fallback)
+      fetchPresigned(signedUrl)
+        .then((r2Res) => {
+          // Step 3: Stream to client
+          const disposition = inline
+            ? 'inline'
+            : `attachment; filename*=UTF-8''${encodeURIComponent(filename || path.basename(key))}`;
 
-        // Step 3: Stream to client
-        const disposition = inline
-          ? 'inline'
-          : `attachment; filename*=UTF-8''${encodeURIComponent(filename || path.basename(key))}`;
-
-        res.setHeader('Content-Disposition', disposition);
-        res.setHeader('Content-Type', r2Res.headers['content-type'] || contentType);
-        if (r2Res.headers['content-length']) {
-          res.setHeader('Content-Length', r2Res.headers['content-length']);
-        }
-        r2Res.pipe(res);
-      }).on('error', (err) => {
-        console.error('R2 HTTP fetch error for', key, ':', err.message);
-        if (!res.headersSent) res.status(502).send('Failed to retrieve file from storage');
-      });
+          res.setHeader('Content-Disposition', disposition);
+          res.setHeader('Content-Type', r2Res.headers['content-type'] || contentType);
+          if (r2Res.headers['content-length']) {
+            res.setHeader('Content-Length', r2Res.headers['content-length']);
+          }
+          r2Res.pipe(res);
+        })
+        .catch((err) => {
+          console.error('R2 fetch error for', key, ':', err.message);
+          if (!res.headersSent) res.status(502).send('File download failed — storage temporarily unavailable');
+        });
     } catch (err) {
       console.error('R2 presigned URL generation error for', key, ':', err.message);
       if (!res.headersSent) {
