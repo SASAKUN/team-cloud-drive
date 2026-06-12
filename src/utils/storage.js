@@ -9,20 +9,19 @@ const r2Enabled = !!(config.r2AccessKeyId && config.r2SecretAccessKey);
 
 let r2Client = null;
 if (r2Enabled) {
-  // Force HTTP to work around TLS handshake incompatibility on Render
-  // (Cloudflare R2 S3 API supports both HTTP and HTTPS)
-  const endpoint = (config.r2Endpoint || '').replace(/^https:\/\//, 'http://');
-  
+  // Keep HTTPS for presigned URL generation (local crypto, no network call).
+  // Actual downloads use the presigned URL via HTTP due to TLS handshake
+  // incompatibility between Render's Node.js and Cloudflare R2.
   r2Client = new S3Client({
     region: 'auto',
-    endpoint,
+    endpoint: config.r2Endpoint,
     credentials: {
       accessKeyId: config.r2AccessKeyId,
       secretAccessKey: config.r2SecretAccessKey,
     },
     forcePathStyle: true,
   });
-  console.log('☁️  R2 endpoint:', endpoint);
+  console.log('☁️  R2 enabled (stream via presigned URL → HTTP fallback)');
 }
 
 const BUCKET = config.r2BucketName;
@@ -66,13 +65,27 @@ async function uploadFile(key, source, contentType) {
  */
 async function getReadStream(key) {
   if (r2Enabled) {
+    // Generate presigned URL, then fetch via HTTP to avoid TLS issues
     const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
-    const response = await r2Client.send(command);
-    return {
-      stream: response.Body,
-      size: response.ContentLength,
-      contentType: response.ContentType || 'application/octet-stream',
-    };
+    const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 300 });
+    const httpUrl = signedUrl.replace(/^https:\/\//, 'http://');
+
+    return new Promise((resolve, reject) => {
+      const http = require('http');
+      http.get(httpUrl, (r2Res) => {
+        if (r2Res.statusCode >= 300) {
+          let body = '';
+          r2Res.on('data', c => body += c);
+          r2Res.on('end', () => reject(new Error(`R2 returned ${r2Res.statusCode}: ${body.substring(0, 200)}`)));
+          return;
+        }
+        resolve({
+          stream: r2Res,
+          size: parseInt(r2Res.headers['content-length'] || '0'),
+          contentType: r2Res.headers['content-type'] || 'application/octet-stream',
+        });
+      }).on('error', reject);
+    });
   }
 
   const localPath = path.join(config.uploadDir, key);
@@ -98,42 +111,51 @@ async function getDownloadUrl(key, expiresIn = 3600) {
 
 /**
  * Stream a file to a response (for preview/download)
- * R2 mode: proxies the file through the server (no direct browser→R2 connection)
+ * R2 mode: generates presigned URL locally (no network), fetches via HTTP,
+ * and pipes to client — avoiding TLS handshake issues on Render.
  */
 async function streamFile(key, res, options = {}) {
   const { filename, contentType = 'application/octet-stream', inline = false } = options;
 
   if (r2Enabled) {
-    // Proxy through server: fetch from R2 and pipe to client
-    // This avoids sending the raw R2 endpoint URL to the browser which lacks public HTTPS
     try {
+      // Step 1: Generate presigned URL (pure local crypto, no network call)
       const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
-      const r2Response = await r2Client.send(command);
+      const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 300 });
+      const httpUrl = signedUrl.replace(/^https:\/\//, 'http://');
 
-      const disposition = inline
-        ? 'inline'
-        : `attachment; filename*=UTF-8''${encodeURIComponent(filename || path.basename(key))}`;
+      // Step 2: Fetch from R2 via plain HTTP (bypasses TLS incompatibility)
+      const http = require('http');
+      http.get(httpUrl, (r2Res) => {
+        if (r2Res.statusCode >= 300) {
+          let body = '';
+          r2Res.on('data', c => body += c);
+          r2Res.on('end', () => {
+            console.error('R2 presigned fetch failed:', r2Res.statusCode, body.substring(0, 300));
+            if (!res.headersSent) res.status(502).send('File download failed — storage temporarily unavailable');
+          });
+          return;
+        }
 
-      res.setHeader('Content-Disposition', disposition);
-      res.setHeader('Content-Type', r2Response.ContentType || contentType);
-      if (r2Response.ContentLength) {
-        res.setHeader('Content-Length', r2Response.ContentLength);
-      }
+        // Step 3: Stream to client
+        const disposition = inline
+          ? 'inline'
+          : `attachment; filename*=UTF-8''${encodeURIComponent(filename || path.basename(key))}`;
 
-      // r2Response.Body is a web ReadableStream (AWS SDK v3); convert to Node stream
-      const { Readable } = require('stream');
-      const nodeStream = Readable.fromWeb
-        ? Readable.fromWeb(r2Response.Body)
-        : r2Response.Body; // already a Node stream in some environments
-      nodeStream.pipe(res);
-      nodeStream.on('error', (err) => {
-        console.error('R2 stream error:', err.message);
-        if (!res.headersSent) res.status(500).send('Download failed');
+        res.setHeader('Content-Disposition', disposition);
+        res.setHeader('Content-Type', r2Res.headers['content-type'] || contentType);
+        if (r2Res.headers['content-length']) {
+          res.setHeader('Content-Length', r2Res.headers['content-length']);
+        }
+        r2Res.pipe(res);
+      }).on('error', (err) => {
+        console.error('R2 HTTP fetch error for', key, ':', err.message);
+        if (!res.headersSent) res.status(502).send('Failed to retrieve file from storage');
       });
     } catch (err) {
-      console.error('R2 GetObject error for', key, ':', err.message);
+      console.error('R2 presigned URL generation error for', key, ':', err.message);
       if (!res.headersSent) {
-        return res.status(500).send('Failed to retrieve file from storage');
+        return res.status(500).send('Failed to generate download link');
       }
     }
     return;
