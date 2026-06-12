@@ -6,12 +6,10 @@ const config = require('../config');
 
 // ===== R2 Configuration =====
 const r2Enabled = !!(config.r2AccessKeyId && config.r2SecretAccessKey);
+const r2PublicUrl = config.r2PublicUrl || null;
 
 let r2Client = null;
-let r2PublicClient = null; // separate client for browser-accessible presigned URLs
-
 if (r2Enabled) {
-  // Primary client — uses S3 API endpoint (for uploads, deletes)
   r2Client = new S3Client({
     region: 'auto',
     endpoint: config.r2Endpoint,
@@ -22,22 +20,10 @@ if (r2Enabled) {
     forcePathStyle: true,
   });
 
-  // Public client — uses R2 public domain for presigned URLs that browsers can access.
-  // getSignedUrl() is pure local crypto (no network call), so using a different endpoint
-  // here produces URLs with the public domain while keeping valid signatures.
-  if (config.r2PublicUrl) {
-    r2PublicClient = new S3Client({
-      region: 'auto',
-      endpoint: config.r2PublicUrl,
-      credentials: {
-        accessKeyId: config.r2AccessKeyId,
-        secretAccessKey: config.r2SecretAccessKey,
-      },
-      forcePathStyle: true,
-    });
-    console.log('☁️  R2 enabled (public presigned URLs via', config.r2PublicUrl, ')');
+  if (r2PublicUrl) {
+    console.log('☁️  R2 enabled — downloads via public URL:', r2PublicUrl);
   } else {
-    console.log('☁️  R2 enabled (WARNING: no R2_PUBLIC_URL set — presigned URLs will use S3 API endpoint, which browsers cannot access)');
+    console.log('☁️  R2 enabled (WARNING: no R2_PUBLIC_URL set — downloads will fail for browsers on Render)');
   }
 }
 
@@ -76,25 +62,33 @@ async function uploadFile(key, source, contentType) {
   return { key, size };
 }
 
-// EXTERNAL preset (preferred for Render → R2 due to TLS incompatibility):
-// 1) Generate presigned URL (pure local crypto) with Response headers baked in
-// 2) 302 redirect the browser to that URL — browser fetches directly from R2
-// This avoids ALL Render ↔ R2 network calls and the TLS handshake failure.
+// ====== R2 Download Strategy ======
+//
+// Problem: Render's Node.js TLS cannot connect to R2's S3 API endpoint
+// (SSL alert 40 — handshake failure). So we can't proxy file content
+// through the server.
+//
+// Solution A (RECOMMENDED): Enable Public Access on the R2 bucket in
+// Cloudflare Dashboard, set R2_PUBLIC_URL to the r2.dev domain
+// (e.g. https://pub-xxxxxxxxxxxx.r2.dev), and redirect browsers
+// directly to the public URL. The server still enforces access control
+// before issuing the 302 redirect. UUID-based paths make files
+// practically unguessable.
+//
+// Solution B (fallback): Generate a presigned URL and 302 redirect.
+// This ONLY works when the presigned URL domain is browser-accessible,
+// which the S3 API endpoint is NOT.
 
 /**
  * Get a readable stream for a file (for piping to archiver etc.)
  * Returns { stream, size, contentType } or null
  *
  * NOTE: In R2 mode on Render, getReadStream CANNOT fetch file content
- *       due to TLS handshake failure (alert 40). Batch downloads that
- *       require server-side streaming (ZIP archiving) will not work in
- *       R2 mode on Render.
+ *       due to TLS handshake incompatibility. Batch ZIP downloads
+ *       require server-side streaming and will not work in R2 mode.
  */
 async function getReadStream(key) {
   if (r2Enabled) {
-    // Cannot fetch R2 content from Render due to TLS incompatibility.
-    // For batch downloads that use getReadStream, files will be skipped
-    // silently. Single-file downloads use streamFile() → 302 redirect.
     return null;
   }
 
@@ -109,14 +103,19 @@ async function getReadStream(key) {
 }
 
 /**
- * Get a presigned URL for downloading a file (R2) or local file path
+ * Get a download URL for a file
+ * With R2_PUBLIC_URL: returns direct public URL (no expiration)
+ * Without: generates a presigned URL (may not work in browsers on Render)
  */
 async function getDownloadUrl(key, expiresIn = 3600) {
   if (r2Enabled) {
+    if (r2PublicUrl) {
+      // Direct public URL — bucket must have Public Access enabled
+      return `${r2PublicUrl.replace(/\/$/, '')}/${encodeKeyForUrl(key)}`;
+    }
+    // Fallback: presigned URL (uses S3 API endpoint, browsers may reject)
     const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
-    // Use public client (browser-accessible domain) when available
-    const client = r2PublicClient || r2Client;
-    return getSignedUrl(client, command, { expiresIn });
+    return getSignedUrl(r2Client, command, { expiresIn });
   }
   return path.join(config.uploadDir, key);
 }
@@ -124,25 +123,47 @@ async function getDownloadUrl(key, expiresIn = 3600) {
 /**
  * Stream a file to a response (for preview/download)
  *
- * R2 mode: generates a presigned URL (local crypto only, no R2 network call)
- * then 302-redirects the browser to fetch directly from Cloudflare R2.
- * This completely avoids Render's TLS handshake failure with R2.
+ * With R2_PUBLIC_URL: 302 redirect to the public URL. Server verifies
+ *   permissions first, then browser fetches directly from R2's public
+ *   domain — no TLS issues.
+ *
+ * Without R2_PUBLIC_URL: generates a presigned URL and 302 redirects.
+ *   This uses the S3 API endpoint which browsers on Render cannot
+ *   connect to (SSL alert 40).
  */
 async function streamFile(key, res, options = {}) {
   const { filename, contentType = 'application/octet-stream', inline = false } = options;
 
   if (r2Enabled) {
     try {
-      // Build GetObjectCommand with response headers baked into presigned URL
-      const cmdInput = {
-        Bucket: BUCKET,
-        Key: key,
-      };
+      if (r2PublicUrl) {
+        // === Solution A: Direct public URL ===
+        // Construct Content-Disposition as a query param for the public URL.
+        // R2 honors the 'response-content-disposition' query parameter on public URLs.
+        const url = new URL(`${r2PublicUrl.replace(/\/$/, '')}/${encodeKeyForUrl(key)}`);
+        if (inline) {
+          url.searchParams.set('response-content-disposition', 'inline');
+        } else if (filename) {
+          url.searchParams.set(
+            'response-content-disposition',
+            `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`
+          );
+        }
+        if (contentType && contentType !== 'application/octet-stream') {
+          url.searchParams.set('response-content-type', contentType);
+        }
+
+        console.log(`  ↪ Redirecting to R2 public URL (${filename || key})`);
+        return res.redirect(302, url.toString());
+      }
+
+      // === Solution B fallback: Presigned URL ===
+      // Build GetObjectCommand with response headers baked in
+      const cmdInput = { Bucket: BUCKET, Key: key };
 
       if (inline) {
         cmdInput.ResponseContentDisposition = 'inline';
       } else if (filename) {
-        // RFC 5987 filename encoding for presigned URL
         cmdInput.ResponseContentDisposition =
           `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
       }
@@ -152,15 +173,12 @@ async function streamFile(key, res, options = {}) {
       }
 
       const command = new GetObjectCommand(cmdInput);
-      // Use public client (browser-accessible domain) when available
-      const signingClient = r2PublicClient || r2Client;
-      const signedUrl = await getSignedUrl(signingClient, command, { expiresIn: 300 });
+      const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 300 });
 
-      // Step 2: Redirect browser to download directly from R2
-      console.log(`  ↪ Redirecting browser to R2 presigned URL (${filename || key})`);
+      console.log(`  ↪ Redirecting to R2 presigned URL (${filename || key})`);
       return res.redirect(302, signedUrl);
     } catch (err) {
-      console.error('R2 presigned URL generation error for', key, ':', err.message);
+      console.error('R2 download error for', key, ':', err.message);
       if (!res.headersSent) {
         return res.status(500).send('Failed to generate download link');
       }
@@ -168,6 +186,7 @@ async function streamFile(key, res, options = {}) {
     return;
   }
 
+  // Local storage
   const localPath = path.join(config.uploadDir, key);
   if (!fs.existsSync(localPath)) {
     return res.status(404).send('File not found');
@@ -203,15 +222,10 @@ async function deleteFile(key) {
 
 /**
  * Check if a file exists in storage
- * When R2 is enabled, trust storage_key from DB (verified during upload).
- * GetObject/HeadObject calls trigger SSL handshake issues on some hosts.
  */
 async function fileExists(key) {
   if (r2Enabled) {
-    // Trust storage_key — actual access is verified when file is downloaded
-    if (key && key.startsWith('files/')) {
-      return true;
-    }
+    if (key && key.startsWith('files/')) return true;
     return false;
   }
   return fs.existsSync(path.join(config.uploadDir, key));
@@ -228,10 +242,22 @@ function makeKey(uuid, filename) {
  * Get public URL for a file (if bucket is public)
  */
 function getPublicUrl(key) {
+  if (r2Enabled && r2PublicUrl) {
+    return `${r2PublicUrl.replace(/\/$/, '')}/${encodeKeyForUrl(key)}`;
+  }
   if (r2Enabled) {
-    return `${config.r2Endpoint}/${BUCKET}/${key}`;
+    return `${config.r2Endpoint}/${BUCKET}/${encodeKeyForUrl(key)}`;
   }
   return null;
+}
+
+/**
+ * Encode a storage key for use in a URL.
+ * Splits by '/' and encodes each segment with encodeURIComponent,
+ * so path separators stay as '/' but filenames are properly encoded.
+ */
+function encodeKeyForUrl(key) {
+  return key.split('/').map(encodeURIComponent).join('/');
 }
 
 module.exports = {
@@ -244,4 +270,5 @@ module.exports = {
   fileExists,
   makeKey,
   getPublicUrl,
+  encodeKeyForUrl,
 };
