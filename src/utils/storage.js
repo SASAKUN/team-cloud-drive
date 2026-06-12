@@ -93,14 +93,45 @@ async function getDownloadUrl(key, expiresIn = 3600) {
 
 /**
  * Stream a file to a response (for preview/download)
+ * R2 mode: proxies the file through the server (no direct browser→R2 connection)
  */
 async function streamFile(key, res, options = {}) {
   const { filename, contentType = 'application/octet-stream', inline = false } = options;
 
   if (r2Enabled) {
-    const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
-    const url = await getSignedUrl(r2Client, command, { expiresIn: 300 });
-    return res.redirect(url);
+    // Proxy through server: fetch from R2 and pipe to client
+    // This avoids sending the raw R2 endpoint URL to the browser which lacks public HTTPS
+    try {
+      const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
+      const r2Response = await r2Client.send(command);
+
+      const disposition = inline
+        ? 'inline'
+        : `attachment; filename*=UTF-8''${encodeURIComponent(filename || path.basename(key))}`;
+
+      res.setHeader('Content-Disposition', disposition);
+      res.setHeader('Content-Type', r2Response.ContentType || contentType);
+      if (r2Response.ContentLength) {
+        res.setHeader('Content-Length', r2Response.ContentLength);
+      }
+
+      // r2Response.Body is a web ReadableStream (AWS SDK v3); convert to Node stream
+      const { Readable } = require('stream');
+      const nodeStream = Readable.fromWeb
+        ? Readable.fromWeb(r2Response.Body)
+        : r2Response.Body; // already a Node stream in some environments
+      nodeStream.pipe(res);
+      nodeStream.on('error', (err) => {
+        console.error('R2 stream error:', err.message);
+        if (!res.headersSent) res.status(500).send('Download failed');
+      });
+    } catch (err) {
+      console.error('R2 GetObject error for', key, ':', err.message);
+      if (!res.headersSent) {
+        return res.status(500).send('Failed to retrieve file from storage');
+      }
+    }
+    return;
   }
 
   const localPath = path.join(config.uploadDir, key);
@@ -108,7 +139,7 @@ async function streamFile(key, res, options = {}) {
     return res.status(404).send('File not found');
   }
 
-  const disposition = inline ? 'inline' : `attachment; filename="${encodeURIComponent(filename || path.basename(key))}"`;
+  const disposition = inline ? 'inline' : `attachment; filename*=UTF-8''${encodeURIComponent(filename || path.basename(key))}`;
   res.setHeader('Content-Disposition', disposition);
   res.setHeader('Content-Type', contentType);
   res.setHeader('Content-Length', fs.statSync(localPath).size);
