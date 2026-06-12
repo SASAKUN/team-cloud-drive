@@ -8,10 +8,10 @@ const config = require('../config');
 const r2Enabled = !!(config.r2AccessKeyId && config.r2SecretAccessKey);
 
 let r2Client = null;
+let r2PublicClient = null; // separate client for browser-accessible presigned URLs
+
 if (r2Enabled) {
-  // Keep HTTPS for presigned URL generation (local crypto, no network call).
-  // Actual downloads use the presigned URL via HTTP due to TLS handshake
-  // incompatibility between Render's Node.js and Cloudflare R2.
+  // Primary client — uses S3 API endpoint (for uploads, deletes)
   r2Client = new S3Client({
     region: 'auto',
     endpoint: config.r2Endpoint,
@@ -21,7 +21,24 @@ if (r2Enabled) {
     },
     forcePathStyle: true,
   });
-  console.log('☁️  R2 enabled (browser-direct download via presigned URL redirect)');
+
+  // Public client — uses R2 public domain for presigned URLs that browsers can access.
+  // getSignedUrl() is pure local crypto (no network call), so using a different endpoint
+  // here produces URLs with the public domain while keeping valid signatures.
+  if (config.r2PublicUrl) {
+    r2PublicClient = new S3Client({
+      region: 'auto',
+      endpoint: config.r2PublicUrl,
+      credentials: {
+        accessKeyId: config.r2AccessKeyId,
+        secretAccessKey: config.r2SecretAccessKey,
+      },
+      forcePathStyle: true,
+    });
+    console.log('☁️  R2 enabled (public presigned URLs via', config.r2PublicUrl, ')');
+  } else {
+    console.log('☁️  R2 enabled (WARNING: no R2_PUBLIC_URL set — presigned URLs will use S3 API endpoint, which browsers cannot access)');
+  }
 }
 
 const BUCKET = config.r2BucketName;
@@ -97,7 +114,9 @@ async function getReadStream(key) {
 async function getDownloadUrl(key, expiresIn = 3600) {
   if (r2Enabled) {
     const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
-    return getSignedUrl(r2Client, command, { expiresIn });
+    // Use public client (browser-accessible domain) when available
+    const client = r2PublicClient || r2Client;
+    return getSignedUrl(client, command, { expiresIn });
   }
   return path.join(config.uploadDir, key);
 }
@@ -133,7 +152,9 @@ async function streamFile(key, res, options = {}) {
       }
 
       const command = new GetObjectCommand(cmdInput);
-      const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 300 });
+      // Use public client (browser-accessible domain) when available
+      const signingClient = r2PublicClient || r2Client;
+      const signedUrl = await getSignedUrl(signingClient, command, { expiresIn: 300 });
 
       // Step 2: Redirect browser to download directly from R2
       console.log(`  ↪ Redirecting browser to R2 presigned URL (${filename || key})`);

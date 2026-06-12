@@ -16,6 +16,10 @@ module.exports = {
   r2SecretAccessKey: process.env.R2_SECRET_ACCESS_KEY || null,
   r2BucketName: process.env.R2_BUCKET_NAME || null,
   r2Endpoint: process.env.R2_ENDPOINT || null,
+  // Public domain for browser-accessible presigned URLs
+  // (e.g., https://pub-<hash>.r2.dev or custom domain)
+  // Set this to avoid browsers hitting the S3 API endpoint directly
+  r2PublicUrl: process.env.R2_PUBLIC_URL || null,
 
   get maxFileSizeBytes() {
     return this.maxFileSizeMB * 1024 * 1024;
