@@ -26,6 +26,7 @@ const sqliteSchema = `
     visibility TEXT NOT NULL DEFAULT 'public' CHECK(visibility IN ('public', 'download_only', 'hidden')),
     description TEXT,
     storage_key TEXT,
+    storage_backend TEXT NOT NULL DEFAULT 'local',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -153,6 +154,10 @@ async function runMigrations() {
       await db.exec(`ALTER TABLE files ADD COLUMN storage_key TEXT`);
     } catch (e) { /* exists */ }
 
+    try {
+      await db.exec(`ALTER TABLE files ADD COLUMN storage_backend TEXT NOT NULL DEFAULT 'local'`);
+    } catch (e) { /* exists */ }
+
     // Migration for 'both' permission in access_keys
     const akSql = await db.prepare("SELECT sql FROM sqlite_master WHERE name = 'access_keys' AND type = 'table'").get();
     if (akSql && !akSql.sql.includes("'both'")) {
@@ -224,9 +229,12 @@ async function runMigrations() {
       });
     }
   } else {
-    // PostgreSQL migrations: storage_key column
+    // PostgreSQL migrations: storage_key and storage_backend columns
     try {
       await db.exec(`ALTER TABLE files ADD COLUMN IF NOT EXISTS storage_key TEXT`);
+    } catch (e) { /* exists or other error */ }
+    try {
+      await db.exec(`ALTER TABLE files ADD COLUMN IF NOT EXISTS storage_backend TEXT NOT NULL DEFAULT 'local'`);
     } catch (e) { /* exists or other error */ }
   }
 }

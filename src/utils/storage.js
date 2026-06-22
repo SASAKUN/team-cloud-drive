@@ -157,18 +157,22 @@ async function getUploadUrl(key, contentType, expiresIn = 300) {
  *       require server-side streaming and will not work in R2 mode.
  */
 async function getReadStream(key) {
-  if (r2Enabled) {
-    return null;
+  // Check local disk first (file may have been uploaded locally when R2 failed)
+  const localPath = path.join(config.uploadDir, key);
+  if (fs.existsSync(localPath)) {
+    const stat = fs.statSync(localPath);
+    return {
+      stream: fs.createReadStream(localPath),
+      size: stat.size,
+      contentType: 'application/octet-stream',
+    };
   }
 
-  const localPath = path.join(config.uploadDir, key);
-  if (!fs.existsSync(localPath)) return null;
-  const stat = fs.statSync(localPath);
-  return {
-    stream: fs.createReadStream(localPath),
-    size: stat.size,
-    contentType: 'application/octet-stream',
-  };
+  if (r2Enabled) {
+    return null; // Cannot stream from R2 server-side (TLS issue)
+  }
+
+  return null;
 }
 
 /**
@@ -178,6 +182,12 @@ async function getReadStream(key) {
  */
 async function getDownloadUrl(key, expiresIn = 3600) {
   if (r2Enabled) {
+    // Check if file exists locally (R2 upload may have failed)
+    const localPath = path.join(config.uploadDir, key);
+    if (fs.existsSync(localPath)) {
+      return localPath; // Will be served from local storage
+    }
+
     if (r2PublicUrl) {
       // Direct public URL — bucket must have Public Access enabled
       return `${r2PublicUrl.replace(/\/$/, '')}/${encodeKeyForUrl(key)}`;
@@ -204,11 +214,10 @@ async function streamFile(key, res, options = {}) {
   const { filename, contentType = 'application/octet-stream', inline = false } = options;
 
   if (r2Enabled) {
+    // Try R2 redirect (public URL or presigned)
     try {
       if (r2PublicUrl) {
         // === Solution A: Direct public URL ===
-        // Construct Content-Disposition as a query param for the public URL.
-        // R2 honors the 'response-content-disposition' query parameter on public URLs.
         const url = new URL(`${r2PublicUrl.replace(/\/$/, '')}/${encodeKeyForUrl(key)}`);
         if (inline) {
           url.searchParams.set('response-content-disposition', 'inline');
@@ -227,7 +236,6 @@ async function streamFile(key, res, options = {}) {
       }
 
       // === Solution B fallback: Presigned URL ===
-      // Build GetObjectCommand with response headers baked in
       const cmdInput = { Bucket: BUCKET, Key: key };
 
       if (inline) {
@@ -247,26 +255,26 @@ async function streamFile(key, res, options = {}) {
       console.log(`  ↪ Redirecting to R2 presigned URL (${filename || key})`);
       return res.redirect(302, signedUrl);
     } catch (err) {
-      console.error('R2 download error for', key, ':', err.message);
-      if (!res.headersSent) {
-        return res.status(500).send('Failed to generate download link');
-      }
+      console.error('R2 download failed, trying local fallback:', err.message);
+      // Fall through to local check below
     }
+  }
+
+  // Local storage fallback (also used when R2 is enabled but file stored locally)
+  const localPath = path.join(config.uploadDir, key);
+  if (fs.existsSync(localPath)) {
+    const disposition = inline ? 'inline' : `attachment; filename*=UTF-8''${encodeURIComponent(filename || path.basename(key))}`;
+    res.setHeader('Content-Disposition', disposition);
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', fs.statSync(localPath).size);
+    const stream = fs.createReadStream(localPath);
+    stream.pipe(res);
     return;
   }
 
-  // Local storage
-  const localPath = path.join(config.uploadDir, key);
-  if (!fs.existsSync(localPath)) {
+  if (!res.headersSent) {
     return res.status(404).send('File not found');
   }
-
-  const disposition = inline ? 'inline' : `attachment; filename*=UTF-8''${encodeURIComponent(filename || path.basename(key))}`;
-  res.setHeader('Content-Disposition', disposition);
-  res.setHeader('Content-Type', contentType);
-  res.setHeader('Content-Length', fs.statSync(localPath).size);
-  const stream = fs.createReadStream(localPath);
-  stream.pipe(res);
 }
 
 /**
@@ -293,11 +301,15 @@ async function deleteFile(key) {
  * Check if a file exists in storage
  */
 async function fileExists(key) {
+  // Always check local disk first
+  if (fs.existsSync(path.join(config.uploadDir, key))) {
+    return true;
+  }
   if (r2Enabled) {
     if (key && key.startsWith('files/')) return true;
     return false;
   }
-  return fs.existsSync(path.join(config.uploadDir, key));
+  return false;
 }
 
 /**

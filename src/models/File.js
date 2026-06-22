@@ -1,12 +1,12 @@
 const db = require('../database');
 
 class File {
-  static async create({ uuid, originalName, storedName, mimeType, sizeBytes, category, description, visibility, storageKey }) {
+  static async create({ uuid, originalName, storedName, mimeType, sizeBytes, category, description, visibility, storageKey, storageBackend }) {
     const stmt = db.prepare(
-      `INSERT INTO files (uuid, original_name, stored_name, mime_type, size_bytes, category, description, visibility, storage_key)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO files (uuid, original_name, stored_name, mime_type, size_bytes, category, description, visibility, storage_key, storage_backend)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
-    const result = await stmt.run(uuid, originalName, storedName, mimeType, sizeBytes, category, description || null, visibility || 'public', storageKey || null);
+    const result = await stmt.run(uuid, originalName, storedName, mimeType, sizeBytes, category, description || null, visibility || 'public', storageKey || null, storageBackend || 'local');
     return this.findById(result.lastInsertRowid);
   }
 

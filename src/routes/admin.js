@@ -140,9 +140,18 @@ router.post('/upload', requireAdmin, (req, res, next) => {
       const category = getCategory(originalName);
       const fileUuid = req.fileUuids[idx];
 
-      // Build storage key and upload to R2
+      // Build storage key
       const storageKey = storage.makeKey(fileUuid, originalName);
-      await storage.uploadFile(storageKey, file.path, mimeType);
+
+      // Try R2 upload, fall back to local storage
+      let storageBackend = 'local';
+      try {
+        await storage.uploadFile(storageKey, file.path, mimeType);
+        storageBackend = 'r2';
+      } catch (e) {
+        console.log('⚠️  R2 upload failed, keeping local copy:', e.message);
+        // File stays on disk via multer — local fallback
+      }
 
       await File.create({
         uuid: fileUuid,
@@ -153,21 +162,26 @@ router.post('/upload', requireAdmin, (req, res, next) => {
         category,
         description: req.body.description || '',
         visibility,
-        storageKey
+        storageKey,
+        storageBackend,
       });
 
-      uploaded.push({ uuid: fileUuid, name: originalName, size: file.size });
+      uploaded.push({ uuid: fileUuid, name: originalName, size: file.size, storageBackend });
     }
 
-    // Clean up temp files created by multer
+    // Clean up temp files only for those successfully uploaded to R2
     if (storage.r2Enabled && req.files) {
-      req.files.forEach(f => {
-        try { fs.rmSync(f.path, { recursive: true }); } catch (e) { /* ignore */ }
-        try {
-          const parentDir = path.dirname(f.path);
-          if (fs.readdirSync(parentDir).length === 0) fs.rmdirSync(parentDir);
-        } catch (e) { /* ignore */ }
-      });
+      const r2Files = uploaded.filter(u => u.storageBackend === 'r2');
+      // Only delete files that were successfully moved to R2
+      if (r2Files.length === uploaded.length) {
+        req.files.forEach(f => {
+          try { fs.rmSync(f.path, { recursive: true }); } catch (e) { /* ignore */ }
+          try {
+            const parentDir = path.dirname(f.path);
+            if (fs.readdirSync(parentDir).length === 0) fs.rmdirSync(parentDir);
+          } catch (e) { /* ignore */ }
+        });
+      }
     }
 
     if (req.xhr || req.get('X-Requested-With') === 'XMLHttpRequest') {
