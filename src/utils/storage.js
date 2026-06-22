@@ -37,6 +37,48 @@ const BUCKET = config.r2BucketName;
 async function uploadFile(key, source, contentType) {
   if (r2Enabled) {
     const body = typeof source === 'string' ? fs.readFileSync(source) : source;
+    const size = typeof source === 'string' ? fs.statSync(source).size : Buffer.byteLength(body);
+
+    // Try R2 public domain upload first (avoids S3 API endpoint TLS issue on Render)
+    if (r2PublicUrl) {
+      try {
+        const presignedUrl = await getUploadUrl(key, contentType, 300);
+        if (presignedUrl) {
+          const https = require('https');
+          const { URL } = require('url');
+          const parsedUrl = new URL(presignedUrl);
+          await new Promise((resolve, reject) => {
+            const req = https.request({
+              hostname: parsedUrl.hostname,
+              path: parsedUrl.pathname + parsedUrl.search,
+              method: 'PUT',
+              headers: {
+                'Content-Type': contentType || 'application/octet-stream',
+                'Content-Length': size,
+              },
+              rejectUnauthorized: true, // r2.dev uses valid Cloudflare certs
+            }, (res) => {
+              if (res.statusCode >= 200 && res.statusCode < 300) {
+                resolve();
+              } else {
+                let body = '';
+                res.on('data', d => body += d);
+                res.on('end', () => reject(new Error(`R2 upload failed: ${res.statusCode} ${body}`)));
+              }
+            });
+            req.on('error', reject);
+            req.write(body);
+            req.end();
+          });
+          console.log('✅ R2 upload via public URL:', key);
+          return { key, size };
+        }
+      } catch (e) {
+        console.log('⚠️  R2 public URL upload failed:', e.message, '— falling back to S3 API');
+      }
+    }
+
+    // Fallback: S3 API endpoint (may fail on Render due to TLS)
     const command = new PutObjectCommand({
       Bucket: BUCKET,
       Key: key,
@@ -44,7 +86,6 @@ async function uploadFile(key, source, contentType) {
       ContentType: contentType || 'application/octet-stream',
     });
     await r2Client.send(command);
-    const size = typeof source === 'string' ? fs.statSync(source).size : Buffer.byteLength(body);
     return { key, size };
   }
 
@@ -60,6 +101,34 @@ async function uploadFile(key, source, contentType) {
   }
   const size = fs.statSync(localPath).size;
   return { key, size };
+}
+
+/**
+ * Get a presigned upload URL that browsers can PUT to directly.
+ * Uses r2PublicUrl as endpoint so the URL is browser-accessible.
+ * getSignedUrl() is pure local crypto — no network call.
+ */
+async function getUploadUrl(key, contentType, expiresIn = 300) {
+  if (!r2Enabled || !r2PublicUrl) return null;
+
+  // Use the public domain as endpoint so browsers can PUT directly
+  const uploadClient = new S3Client({
+    region: 'auto',
+    endpoint: r2PublicUrl,
+    credentials: {
+      accessKeyId: config.r2AccessKeyId,
+      secretAccessKey: config.r2SecretAccessKey,
+    },
+    forcePathStyle: true,
+  });
+
+  const command = new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    ContentType: contentType || 'application/octet-stream',
+  });
+
+  return getSignedUrl(uploadClient, command, { expiresIn });
 }
 
 // ====== R2 Download Strategy ======
@@ -264,6 +333,7 @@ module.exports = {
   r2Enabled,
   uploadFile,
   getDownloadUrl,
+  getUploadUrl,
   getReadStream,
   streamFile,
   deleteFile,
