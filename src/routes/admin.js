@@ -202,8 +202,12 @@ router.post('/files/:uuid/delete', requireAdmin, async (req, res) => {
   const file = await File.findByUuid(req.params.uuid);
   if (!file) return res.status(404).json({ error: '文件不存在' });
 
-  const key = storage.makeKey(file.uuid, file.original_name);
-  await storage.deleteFile(key);
+  try {
+    const key = storage.makeKey(file.uuid, file.original_name);
+    await storage.deleteFile(key);
+  } catch (e) {
+    console.log('⚠️  Storage delete skipped (file may not exist in bucket):', e.message);
+  }
   await File.deleteByUuid(file.uuid);
   res.json({ success: true });
 });
@@ -216,8 +220,12 @@ router.post('/files/batch/delete', requireAdmin, async (req, res) => {
   for (const uuid of uuids) {
     const file = await File.findByUuid(uuid);
     if (file) {
-      const key = storage.makeKey(file.uuid, file.original_name);
-      await storage.deleteFile(key);
+      try {
+        const key = storage.makeKey(file.uuid, file.original_name);
+        await storage.deleteFile(key);
+      } catch (e) {
+        console.log('⚠️  Storage delete skipped:', e.message);
+      }
       await File.deleteByUuid(file.uuid);
     }
   }
