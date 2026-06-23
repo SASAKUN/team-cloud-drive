@@ -54,7 +54,7 @@ router.get('/files', requireAdmin, async (req, res) => {
     const exists = await storage.fileExists(key);
     r2Checks++;
     if (exists) r2Found++;
-    if (exists === false && storage.r2Enabled) r2Errors++;
+    if (exists === false && storage.supabaseEnabled) r2Errors++;
     filesWithMeta.push({
       ...file,
       icon: getFileIcon(file.category, file.original_name),
@@ -169,10 +169,10 @@ router.post('/upload', requireAdmin, (req, res, next) => {
       uploaded.push({ uuid: fileUuid, name: originalName, size: file.size, storageBackend });
     }
 
-    // Clean up temp files only for those successfully uploaded to R2
-    if (storage.r2Enabled && req.files) {
-      const r2Files = uploaded.filter(u => u.storageBackend === 'r2');
-      // Only delete files that were successfully moved to R2
+    // Clean up temp files only for those successfully uploaded to Supabase
+    if (storage.supabaseEnabled && req.files) {
+      const r2Files = uploaded.filter(u => u.storageBackend === 'supabase');
+      // Only delete files that were successfully moved to Supabase
       if (r2Files.length === uploaded.length) {
         req.files.forEach(f => {
           try { fs.rmSync(f.path, { recursive: true }); } catch (e) { /* ignore */ }

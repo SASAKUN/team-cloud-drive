@@ -1,92 +1,75 @@
-const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
 
-// ===== R2 Configuration =====
-const r2Enabled = !!(config.r2AccessKeyId && config.r2SecretAccessKey);
-const r2PublicUrl = config.r2PublicUrl || null;
+// ===== Supabase Storage Configuration =====
+const supabaseUrl = config.supabaseUrl || null;
+const supabaseKey = config.supabaseServiceRoleKey || null;
+const supabaseEnabled = !!(supabaseUrl && supabaseKey);
+const BUCKET = config.supabaseStorageBucket || 'files';
 
-let r2Client = null;
-if (r2Enabled) {
-  r2Client = new S3Client({
-    region: 'auto',
-    endpoint: config.r2Endpoint,
-    credentials: {
-      accessKeyId: config.r2AccessKeyId,
-      secretAccessKey: config.r2SecretAccessKey,
-    },
-    forcePathStyle: true,
-  });
-
-  if (r2PublicUrl) {
-    console.log('☁️  R2 enabled — downloads via public URL:', r2PublicUrl);
-  } else {
-    console.log('☁️  R2 enabled (WARNING: no R2_PUBLIC_URL set — downloads will fail for browsers on Render)');
-  }
+if (supabaseEnabled) {
+  console.log(`☁️  Supabase Storage enabled: ${supabaseUrl}/storage/v1 (bucket: ${BUCKET})`);
 }
 
-const BUCKET = config.r2BucketName;
+// ===== Helpers =====
+
+function makeKey(uuid, filename) {
+  return `files/${uuid}/${filename}`;
+}
+
+function encodeKeyForUrl(key) {
+  return key.split('/').map(encodeURIComponent).join('/');
+}
+
+/**
+ * Supabase Storage REST API helper
+ * Docs: https://supabase.com/docs/reference/javascript/storage-createbucket
+ */
+async function supabaseFetch(path, options = {}) {
+  const url = `${supabaseUrl}/storage/v1/${path}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${supabaseKey}`,
+      'apikey': supabaseKey,
+      ...options.headers,
+    },
+  });
+  return res;
+}
 
 // ===== Storage API =====
 
 /**
- * Upload a file to storage (R2 or local)
+ * Upload a file to Supabase Storage
  */
 async function uploadFile(key, source, contentType) {
-  if (r2Enabled) {
+  if (supabaseEnabled) {
     const body = typeof source === 'string' ? fs.readFileSync(source) : source;
     const size = typeof source === 'string' ? fs.statSync(source).size : Buffer.byteLength(body);
 
-    // Try R2 public domain upload first (avoids S3 API endpoint TLS issue on Render)
-    if (r2PublicUrl) {
-      try {
-        const presignedUrl = await getUploadUrl(key, contentType, 300);
-        if (presignedUrl) {
-          const https = require('https');
-          const { URL } = require('url');
-          const parsedUrl = new URL(presignedUrl);
-          await new Promise((resolve, reject) => {
-            const req = https.request({
-              hostname: parsedUrl.hostname,
-              path: parsedUrl.pathname + parsedUrl.search,
-              method: 'PUT',
-              headers: {
-                'Content-Type': contentType || 'application/octet-stream',
-                'Content-Length': size,
-              },
-              rejectUnauthorized: true, // r2.dev uses valid Cloudflare certs
-            }, (res) => {
-              if (res.statusCode >= 200 && res.statusCode < 300) {
-                resolve();
-              } else {
-                let body = '';
-                res.on('data', d => body += d);
-                res.on('end', () => reject(new Error(`R2 upload failed: ${res.statusCode} ${body}`)));
-              }
-            });
-            req.on('error', reject);
-            req.write(body);
-            req.end();
-          });
-          console.log('✅ R2 upload via public URL:', key);
-          return { key, size };
-        }
-      } catch (e) {
-        console.log('⚠️  R2 public URL upload failed:', e.message, '— falling back to S3 API');
-      }
-    }
+    try {
+      const res = await supabaseFetch(`object/${BUCKET}/${encodeKeyForUrl(key)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': contentType || 'application/octet-stream',
+          'x-upsert': 'false',
+        },
+        body,
+      });
 
-    // Fallback: S3 API endpoint (may fail on Render due to TLS)
-    const command = new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: key,
-      Body: body,
-      ContentType: contentType || 'application/octet-stream',
-    });
-    await r2Client.send(command);
-    return { key, size };
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Supabase upload failed (${res.status}): ${errText}`);
+      }
+
+      console.log('✅ Supabase Storage upload:', key);
+      return { key, size, storageBackend: 'supabase' };
+    } catch (e) {
+      console.error('❌ Supabase Storage upload error:', e.message);
+      throw e;
+    }
   }
 
   // Local storage fallback
@@ -100,64 +83,38 @@ async function uploadFile(key, source, contentType) {
     fs.writeFileSync(localPath, source);
   }
   const size = fs.statSync(localPath).size;
-  return { key, size };
+  return { key, size, storageBackend: 'local' };
 }
 
 /**
- * Get a presigned upload URL that browsers can PUT to directly.
- * Uses r2PublicUrl as endpoint so the URL is browser-accessible.
- * getSignedUrl() is pure local crypto — no network call.
- */
-async function getUploadUrl(key, contentType, expiresIn = 300) {
-  if (!r2Enabled || !r2PublicUrl) return null;
-
-  // Use the public domain as endpoint so browsers can PUT directly
-  const uploadClient = new S3Client({
-    region: 'auto',
-    endpoint: r2PublicUrl,
-    credentials: {
-      accessKeyId: config.r2AccessKeyId,
-      secretAccessKey: config.r2SecretAccessKey,
-    },
-    forcePathStyle: true,
-  });
-
-  const command = new PutObjectCommand({
-    Bucket: BUCKET,
-    Key: key,
-    ContentType: contentType || 'application/octet-stream',
-  });
-
-  return getSignedUrl(uploadClient, command, { expiresIn });
-}
-
-// ====== R2 Download Strategy ======
-//
-// Problem: Render's Node.js TLS cannot connect to R2's S3 API endpoint
-// (SSL alert 40 — handshake failure). So we can't proxy file content
-// through the server.
-//
-// Solution A (RECOMMENDED): Enable Public Access on the R2 bucket in
-// Cloudflare Dashboard, set R2_PUBLIC_URL to the r2.dev domain
-// (e.g. https://pub-xxxxxxxxxxxx.r2.dev), and redirect browsers
-// directly to the public URL. The server still enforces access control
-// before issuing the 302 redirect. UUID-based paths make files
-// practically unguessable.
-//
-// Solution B (fallback): Generate a presigned URL and 302 redirect.
-// This ONLY works when the presigned URL domain is browser-accessible,
-// which the S3 API endpoint is NOT.
-
-/**
- * Get a readable stream for a file (for piping to archiver etc.)
+ * Get a readable stream for a file (for batch ZIP downloads)
  * Returns { stream, size, contentType } or null
- *
- * NOTE: In R2 mode on Render, getReadStream CANNOT fetch file content
- *       due to TLS handshake incompatibility. Batch ZIP downloads
- *       require server-side streaming and will not work in R2 mode.
  */
 async function getReadStream(key) {
-  // Check local disk first (file may have been uploaded locally when R2 failed)
+  if (supabaseEnabled) {
+    try {
+      const url = `${supabaseUrl}/storage/v1/object/${BUCKET}/${encodeKeyForUrl(key)}`;
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${supabaseKey}`, 'apikey': supabaseKey },
+      });
+      if (!res.ok) return null;
+      const buffer = await res.arrayBuffer();
+      const stream = require('stream');
+      const readable = new stream.Readable();
+      readable._read = () => {};
+      readable.push(Buffer.from(buffer));
+      readable.push(null);
+      return {
+        stream: readable,
+        size: parseInt(res.headers.get('content-length') || '0', 10),
+        contentType: res.headers.get('content-type') || 'application/octet-stream',
+      };
+    } catch (e) {
+      console.error('Supabase getReadStream error:', e.message);
+    }
+  }
+
+  // Local fallback
   const localPath = path.join(config.uploadDir, key);
   if (fs.existsSync(localPath)) {
     const stat = fs.statSync(localPath);
@@ -167,103 +124,76 @@ async function getReadStream(key) {
       contentType: 'application/octet-stream',
     };
   }
-
-  if (r2Enabled) {
-    return null; // Cannot stream from R2 server-side (TLS issue)
-  }
-
   return null;
 }
 
 /**
  * Get a download URL for a file
- * With R2_PUBLIC_URL: returns direct public URL (no expiration)
- * Without: generates a presigned URL (may not work in browsers on Render)
+ * With Supabase: returns a signed URL (valid for 1 hour)
  */
 async function getDownloadUrl(key, expiresIn = 3600) {
-  if (r2Enabled) {
-    // Check if file exists locally (R2 upload may have failed)
-    const localPath = path.join(config.uploadDir, key);
-    if (fs.existsSync(localPath)) {
-      return localPath; // Will be served from local storage
+  if (supabaseEnabled) {
+    try {
+      const res = await supabaseFetch(`object/sign/${BUCKET}/${encodeKeyForUrl(key)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expiresIn }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return `${supabaseUrl}/storage/v1${data.signedURL}`;
+      }
+    } catch (e) {
+      console.error('Supabase getDownloadUrl error:', e.message);
     }
-
-    if (r2PublicUrl) {
-      // Direct public URL — bucket must have Public Access enabled
-      return `${r2PublicUrl.replace(/\/$/, '')}/${encodeKeyForUrl(key)}`;
-    }
-    // Fallback: presigned URL (uses S3 API endpoint, browsers may reject)
-    const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
-    return getSignedUrl(r2Client, command, { expiresIn });
   }
-  return path.join(config.uploadDir, key);
+  return null;
 }
 
 /**
  * Stream a file to a response (for preview/download)
- *
- * With R2_PUBLIC_URL: 302 redirect to the public URL. Server verifies
- *   permissions first, then browser fetches directly from R2's public
- *   domain — no TLS issues.
- *
- * Without R2_PUBLIC_URL: generates a presigned URL and 302 redirects.
- *   This uses the S3 API endpoint which browsers on Render cannot
- *   connect to (SSL alert 40).
+ * With Supabase: issues a 302 redirect to the signed URL
  */
 async function streamFile(key, res, options = {}) {
   const { filename, contentType = 'application/octet-stream', inline = false } = options;
 
-  if (r2Enabled) {
-    // Try R2 redirect (public URL or presigned)
+  if (supabaseEnabled) {
     try {
-      if (r2PublicUrl) {
-        // === Solution A: Direct public URL ===
-        const url = new URL(`${r2PublicUrl.replace(/\/$/, '')}/${encodeKeyForUrl(key)}`);
+      // Create a signed URL for download
+      const signRes = await supabaseFetch(`object/sign/${BUCKET}/${encodeKeyForUrl(key)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expiresIn: 300 }),
+      });
+
+      if (signRes.ok) {
+        const data = await signRes.json();
+        let signedUrl = `${supabaseUrl}/storage/v1${data.signedURL}`;
+
+        // Supabase signed URLs already include content-disposition handling
+        // but we can add response headers via query params
+        const url = new URL(signedUrl);
         if (inline) {
-          url.searchParams.set('response-content-disposition', 'inline');
-        } else if (filename) {
-          url.searchParams.set(
-            'response-content-disposition',
-            `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`
-          );
-        }
-        if (contentType && contentType !== 'application/octet-stream') {
-          url.searchParams.set('response-content-type', contentType);
+          url.searchParams.set('download', '');
         }
 
-        console.log(`  ↪ Redirecting to R2 public URL (${filename || key})`);
+        console.log(`  ↪ Redirecting to Supabase Storage (${filename || key})`);
         return res.redirect(302, url.toString());
+      } else {
+        const errText = await signRes.text();
+        console.error('Supabase sign error:', signRes.status, errText);
       }
-
-      // === Solution B fallback: Presigned URL ===
-      const cmdInput = { Bucket: BUCKET, Key: key };
-
-      if (inline) {
-        cmdInput.ResponseContentDisposition = 'inline';
-      } else if (filename) {
-        cmdInput.ResponseContentDisposition =
-          `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
-      }
-
-      if (contentType && contentType !== 'application/octet-stream') {
-        cmdInput.ResponseContentType = contentType;
-      }
-
-      const command = new GetObjectCommand(cmdInput);
-      const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 300 });
-
-      console.log(`  ↪ Redirecting to R2 presigned URL (${filename || key})`);
-      return res.redirect(302, signedUrl);
-    } catch (err) {
-      console.error('R2 download failed, trying local fallback:', err.message);
-      // Fall through to local check below
+    } catch (e) {
+      console.error('Supabase streamFile error:', e.message);
     }
   }
 
-  // Local storage fallback (also used when R2 is enabled but file stored locally)
+  // Local storage fallback
   const localPath = path.join(config.uploadDir, key);
   if (fs.existsSync(localPath)) {
-    const disposition = inline ? 'inline' : `attachment; filename*=UTF-8''${encodeURIComponent(filename || path.basename(key))}`;
+    const disposition = inline
+      ? 'inline'
+      : `attachment; filename*=UTF-8''${encodeURIComponent(filename || path.basename(key))}`;
     res.setHeader('Content-Disposition', disposition);
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Length', fs.statSync(localPath).size);
@@ -281,12 +211,26 @@ async function streamFile(key, res, options = {}) {
  * Delete a file from storage
  */
 async function deleteFile(key) {
-  if (r2Enabled) {
-    const command = new DeleteObjectCommand({ Bucket: BUCKET, Key: key });
-    await r2Client.send(command);
+  if (supabaseEnabled) {
+    try {
+      const res = await supabaseFetch(`object/${BUCKET}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefixes: [encodeKeyForUrl(key)] }),
+      });
+      if (res.ok) {
+        console.log('✅ Supabase Storage delete:', key);
+      } else {
+        const errText = await res.text();
+        console.error('Supabase delete error:', res.status, errText);
+      }
+    } catch (e) {
+      console.error('Supabase deleteFile error:', e.message);
+    }
     return;
   }
 
+  // Local fallback
   const localPath = path.join(config.uploadDir, key);
   if (fs.existsSync(localPath)) {
     fs.unlinkSync(localPath);
@@ -301,51 +245,35 @@ async function deleteFile(key) {
  * Check if a file exists in storage
  */
 async function fileExists(key) {
-  // Always check local disk first
-  if (fs.existsSync(path.join(config.uploadDir, key))) {
-    return true;
+  if (supabaseEnabled) {
+    try {
+      const res = await supabaseFetch(`object/${BUCKET}/${encodeKeyForUrl(key)}`, {
+        method: 'HEAD',
+      });
+      return res.ok;
+    } catch (e) {
+      return false;
+    }
   }
-  if (r2Enabled) {
-    if (key && key.startsWith('files/')) return true;
-    return false;
-  }
-  return false;
+
+  // Local fallback
+  return fs.existsSync(path.join(config.uploadDir, key));
 }
 
 /**
- * Generate storage key for a file
- */
-function makeKey(uuid, filename) {
-  return `files/${uuid}/${filename}`;
-}
-
-/**
- * Get public URL for a file (if bucket is public)
+ * Get public URL for a file
  */
 function getPublicUrl(key) {
-  if (r2Enabled && r2PublicUrl) {
-    return `${r2PublicUrl.replace(/\/$/, '')}/${encodeKeyForUrl(key)}`;
-  }
-  if (r2Enabled) {
-    return `${config.r2Endpoint}/${BUCKET}/${encodeKeyForUrl(key)}`;
+  if (supabaseEnabled) {
+    return `${supabaseUrl}/storage/v1/object/public/${BUCKET}/${encodeKeyForUrl(key)}`;
   }
   return null;
 }
 
-/**
- * Encode a storage key for use in a URL.
- * Splits by '/' and encodes each segment with encodeURIComponent,
- * so path separators stay as '/' but filenames are properly encoded.
- */
-function encodeKeyForUrl(key) {
-  return key.split('/').map(encodeURIComponent).join('/');
-}
-
 module.exports = {
-  r2Enabled,
+  supabaseEnabled,
   uploadFile,
   getDownloadUrl,
-  getUploadUrl,
   getReadStream,
   streamFile,
   deleteFile,
