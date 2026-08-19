@@ -54,7 +54,7 @@ router.get('/files', requireAdmin, async (req, res) => {
     const exists = await storage.fileExists(key);
     r2Checks++;
     if (exists) r2Found++;
-    if (exists === false && storage.supabaseEnabled) r2Errors++;
+    if (exists === false && storage.cosEnabled) r2Errors++;
     filesWithMeta.push({
       ...file,
       icon: getFileIcon(file.category, file.original_name),
@@ -143,13 +143,13 @@ router.post('/upload', requireAdmin, (req, res, next) => {
       // Build storage key
       const storageKey = storage.makeKey(fileUuid, originalName);
 
-      // Try R2 upload, fall back to local storage
+      // Try COS upload, fall back to local storage
       let storageBackend = 'local';
       try {
         await storage.uploadFile(storageKey, file.path, mimeType);
-        storageBackend = 'r2';
+        storageBackend = 'cos';
       } catch (e) {
-        console.log('⚠️  R2 upload failed, keeping local copy:', e.message);
+        console.log('⚠️  COS upload failed, keeping local copy:', e.message);
         // File stays on disk via multer — local fallback
       }
 
@@ -169,10 +169,10 @@ router.post('/upload', requireAdmin, (req, res, next) => {
       uploaded.push({ uuid: fileUuid, name: originalName, size: file.size, storageBackend });
     }
 
-    // Clean up temp files only for those successfully uploaded to Supabase
-    if (storage.supabaseEnabled && req.files) {
-      const r2Files = uploaded.filter(u => u.storageBackend === 'supabase');
-      // Only delete files that were successfully moved to Supabase
+    // Clean up temp files only for those successfully uploaded to COS
+    if (storage.cosEnabled && req.files) {
+      const r2Files = uploaded.filter(u => u.storageBackend === 'cos');
+      // Only delete files that were successfully moved to COS
       if (r2Files.length === uploaded.length) {
         req.files.forEach(f => {
           try { fs.rmSync(f.path, { recursive: true }); } catch (e) { /* ignore */ }
